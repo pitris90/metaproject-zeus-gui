@@ -9,6 +9,7 @@ import {
 	IconCpu,
 	IconDeviceDesktopAnalytics,
 	IconDevices2,
+	IconLibrary,
 	IconPodium,
 	IconQuestionMark,
 	IconReport,
@@ -92,6 +93,13 @@ const DrawerList = ({ open, onClose }: DrawerListProps) => {
 			]
 		}
 	];
+
+	// My Publications top-level link
+	LINKS.push({
+		title: 'components.global.drawerList.links.publications.title',
+		href: '/publications',
+		icon: <IconLibrary />
+	});
 
 	const { pathname } = useLocation();
 	const { t } = useTranslation();

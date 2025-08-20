@@ -6,4 +6,6 @@ export type Publication = {
 	year: number;
 	uniqueId?: string;
 	source?: 'doi' | 'manual';
+	// optional flag from backend indicating the current user is the owner
+	isOwner?: boolean;
 };

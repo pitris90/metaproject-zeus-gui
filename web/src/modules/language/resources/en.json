@@ -62,6 +62,9 @@
               "allocations": "All allocations",
               "allocation_requests": "Allocation requests"
             }
+          },
+          "publications": {
+            "title": "Publications"
           }
         }
       }
