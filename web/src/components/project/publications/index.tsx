@@ -2,8 +2,9 @@ import { ActionIcon, Badge, Box, Group, Title } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
 import { useState } from 'react';
-import { IconLibrary, IconTrash } from '@tabler/icons-react';
+import { IconLibrary, IconTrash, IconTrashX } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
+import { modals } from '@mantine/modals';
 
 import AddPublication from '@/components/project/publications/add-publication';
 import { useProjectPublicationsQuery } from '@/modules/publication/queries';
@@ -13,6 +14,7 @@ import { type Publication } from '@/modules/publication/model';
 import PublicationCard from '@/components/project/publications/publication-card';
 import { PUBLICATION_PAGE_SIZES } from '@/modules/publication/constants';
 import { useRemovePublicationMutation } from '@/modules/publication/mutations';
+import { useDeleteMyPublicationMutation } from '@/modules/publication/my-queries';
 import Loading from '@/components/global/loading';
 import { useProjectOutletContext } from '@/modules/auth/guards/project-detail-guard';
 
@@ -29,10 +31,11 @@ const ProjectPublications = ({ id }: ProjectPublicationsType) => {
 	const [limit, setLimit] = useState(PUBLICATION_PAGE_SIZES[0]);
 	const [sortStatus, setSortStatus] = useState<DataTableSortStatus<Publication>>({
 		columnAccessor: 'id',
-		direction: 'asc'
+			direction: 'asc'
 	});
 
-	const { mutate, isPending: isRemovePending } = useRemovePublicationMutation();
+		const { mutate, isPending: isRemovePending } = useRemovePublicationMutation();
+		const deleteMyMutation = useDeleteMyPublicationMutation();
 	const {
 		data: response,
 		isPending,
@@ -99,6 +102,40 @@ const ProjectPublications = ({ id }: ProjectPublicationsType) => {
 		});
 	};
 
+	const removeAndDelete = (publicationId?: number) => {
+		if (!publicationId) return;
+		modals.openConfirmModal({
+			title: t('components.project.publications.index.delete_confirm_title', { defaultValue: 'Delete publication?' }),
+			children: t('components.project.publications.index.delete_confirm_text', {
+				defaultValue: 'This will remove it from the project and delete it from My publications.'
+			}),
+			labels: {
+				confirm: t('common.delete', { defaultValue: 'Delete' }),
+				cancel: t('common.cancel', { defaultValue: 'Cancel' })
+			},
+			confirmProps: { color: 'red' },
+			onConfirm: () => {
+				deleteMyMutation.mutate(publicationId, {
+					onSuccess: () => {
+						notifications.show({
+							message: t(
+								'components.project.publications.index.notifications.publication_deleted',
+								{ defaultValue: 'Publication deleted' }
+							)
+						});
+						refetch().then();
+					},
+					onError: () => {
+						notifications.show({
+							message: t('components.project.publications.index.notifications.error'),
+							color: 'red'
+						});
+					}
+				});
+			}
+		});
+	};
+
 	return (
 		<Box mt={30}>
 			<Group justify="space-between" mb={5}>
@@ -131,7 +168,7 @@ const ProjectPublications = ({ id }: ProjectPublicationsType) => {
 					{
 						title: t('components.project.publications.index.columns.publication_info'),
 						accessor: 'info',
-						render: publication => <PublicationCard publication={publication} />
+						render: (publication: Publication) => <PublicationCard publication={publication} />
 					},
 					{
 						accessor: 'year',
@@ -143,9 +180,9 @@ const ProjectPublications = ({ id }: ProjectPublicationsType) => {
 						accessor: 'actions',
 						title: t('components.project.publications.index.columns.actions'),
 						textAlign: 'center',
-						width: 120,
+						width: 160,
 						hidden: !permissions.includes('edit_publications'),
-						render: publication => (
+						render: (publication: Publication) => (
 							<Group gap={4} justify="space-between" wrap="nowrap">
 								<ActionIcon
 									size="sm"
@@ -156,6 +193,16 @@ const ProjectPublications = ({ id }: ProjectPublicationsType) => {
 								>
 									<IconTrash size={24} />
 								</ActionIcon>
+								{publication.isOwner && (
+									<ActionIcon
+										size="sm"
+										variant="subtle"
+										color="red"
+										onClick={() => removeAndDelete(publication?.id)}
+									>
+										<IconTrashX size={24} />
+									</ActionIcon>
+								)}
 							</Group>
 						)
 					}

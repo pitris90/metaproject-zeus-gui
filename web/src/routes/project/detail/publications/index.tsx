@@ -1,8 +1,8 @@
 import { ActionIcon, Box, Button, Divider, Group, NumberInput, Stack, TextInput, Title } from '@mantine/core';
-import { DataTable } from 'mantine-datatable';
+import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
 import { IconClipboardPlus, IconSearch, IconTrash } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { modals } from '@mantine/modals';
@@ -22,6 +22,9 @@ import {
 import { searchByDoi } from '@/modules/publication/api/search-by-doi';
 import PublicationCard from '@/components/project/publications/publication-card';
 import { useAddPublicationsMutation } from '@/modules/publication/mutations';
+import { useAssignMyPublicationMutation, useMyPublicationsQuery } from '@/modules/publication/my-queries';
+import { PUBLICATION_PAGE_SIZES } from '@/modules/publication/constants';
+import { getSortQuery } from '@/modules/api/sorting/utils';
 
 const ProjectPublicationsAddPage = () => {
 	const { t } = useTranslation();
@@ -36,19 +39,41 @@ const ProjectPublicationsAddPage = () => {
 		resolver: zodResolver(searchByDoiSchema)
 	});
 	const addPublicationManuallyForm = useForm<ManualPublicationSchema>({
-		resolver: zodResolver(manualPublicationSchema)
+			resolver: zodResolver(manualPublicationSchema)
 	});
 
 	const { mutate, isPending } = useAddPublicationsMutation();
+		const assignMutation = useAssignMyPublicationMutation();
+
+		// state for "My publications" modal
+		const [isMyModalOpen, setIsMyModalOpen] = useState(false);
+		const [myPage, setMyPage] = useState(1);
+		const [myLimit, setMyLimit] = useState(PUBLICATION_PAGE_SIZES[0]);
+		const [mySort, setMySort] = useState<DataTableSortStatus<Publication>>({
+			columnAccessor: 'id',
+			direction: 'asc'
+		});
+		const mySortQuery = useMemo(
+			() => getSortQuery(mySort.columnAccessor, mySort.direction),
+			[mySort]
+		);
+		const {
+			data: myResponse,
+			isPending: isMyLoading,
+			refetch: refetchMy
+		} = useMyPublicationsQuery({ page: myPage, limit: myLimit }, mySortQuery);
+		const myRecords = myResponse?.data ?? [];
+		const myTotal = myResponse?.metadata?.totalRecords ?? 0;
+		const [selectedMy, setSelectedMy] = useState<Publication[]>([]);
 
 	const handleSelect = (pickedPublication: Publication) => {
 		// publication is picked - remove
-		if (publications.some(publication => publication.uniqueId === pickedPublication.uniqueId)) {
-			setPublications(publications =>
-				publications.filter(publication => publication.uniqueId !== pickedPublication.uniqueId)
-			);
+			if (publications.some((publication: Publication) => publication.uniqueId === pickedPublication.uniqueId)) {
+				setPublications((publications: Publication[]) =>
+					publications.filter((publication: Publication) => publication.uniqueId !== pickedPublication.uniqueId)
+				);
 		} else {
-			setPublications(publications => [...publications, pickedPublication]);
+				setPublications((publications: Publication[]) => [...publications, pickedPublication]);
 		}
 	};
 
@@ -138,6 +163,33 @@ const ProjectPublicationsAddPage = () => {
 		});
 	};
 
+		const openAddFromMy = async () => {
+			setIsMyModalOpen(true);
+			await refetchMy();
+		};
+
+		const closeAddFromMy = () => {
+			setIsMyModalOpen(false);
+			setSelectedMy([]);
+		};
+
+		const assignSelectedFromMy = async () => {
+			if (!selectedMy.length) return;
+			try {
+						await Promise.all(
+							selectedMy.map((p: Publication) =>
+								assignMutation.mutateAsync({ id: p.id as number, projectId: project.id })
+							)
+						);
+				notifications.show({ message: t('routes.ProjectPublicationsAddPage.my.assign_success', { count: selectedMy.length }) });
+				closeAddFromMy();
+				await queryClient.refetchQueries({ queryKey: ['project', project.id] });
+				navigate(`/project/${project.id}`);
+			} catch (e) {
+				notifications.show({ message: t('routes.ProjectPublicationsAddPage.error.message'), color: 'red' });
+			}
+		};
+
 	const addPublications = () => {
 		mutate(
 			{
@@ -203,6 +255,9 @@ const ProjectPublicationsAddPage = () => {
 				>
 					{t('routes.ProjectPublicationsAddPage.add_manually')}
 				</Button>
+						<Button onClick={openAddFromMy} variant="outline" color="blue">
+							{t('routes.ProjectPublicationsAddPage.add_from_my_publications')}
+						</Button>
 			</Stack>
 			{publications.length > 0 && (
 				<Box py={30}>
@@ -212,13 +267,13 @@ const ProjectPublicationsAddPage = () => {
 						withTableBorder
 						striped
 						records={publications}
-						columns={[
+												columns={[
 							{
 								accessor: 'title',
 								title: t('components.project.publications.index.columns.publication_info'),
-								render: publication => (
-									<PublicationCard key={publication.title} publication={publication} />
-								)
+														render: (publication: Publication) => (
+															<PublicationCard publication={publication} />
+														)
 							},
 							{
 								accessor: 'year',
@@ -230,7 +285,7 @@ const ProjectPublicationsAddPage = () => {
 								title: '',
 								textAlign: 'center',
 								width: 120,
-								render: userInfo => (
+														render: (userInfo: Publication) => (
 									<Group gap={4} justify="space-between" wrap="nowrap">
 										<ActionIcon
 											size="sm"
@@ -250,6 +305,47 @@ const ProjectPublicationsAddPage = () => {
 					</Button>
 				</Box>
 			)}
+
+					{isMyModalOpen && (
+						<Box py={30}>
+							  <Title order={4}>{t('routes.ProjectPublicationsAddPage.my.title', { defaultValue: 'My publications' })}</Title>
+							<DataTable
+								height={500}
+								withTableBorder
+								fetching={isMyLoading}
+								records={myRecords}
+								totalRecords={myTotal}
+								page={myPage}
+								onPageChange={async p => {
+									setMyPage(p);
+									await refetchMy();
+								}}
+								recordsPerPage={myLimit}
+								recordsPerPageOptions={PUBLICATION_PAGE_SIZES}
+								onRecordsPerPageChange={async l => {
+									setMyLimit(l);
+									await refetchMy();
+								}}
+								selectedRecords={selectedMy}
+								onSelectedRecordsChange={setSelectedMy}
+								sortStatus={mySort}
+								onSortStatusChange={async s => {
+									setMySort(s as DataTableSortStatus<Publication>);
+									await refetchMy();
+								}}
+								columns={[
+									{ accessor: 'title', title: t('components.project.publications.index.columns.publication_info') },
+									{ accessor: 'year', title: t('components.project.publications.index.columns.year'), width: 150 }
+								]}
+							/>
+							<Group mt={10} justify="flex-end">
+								<Button variant="default" onClick={closeAddFromMy}>{t('common.cancel', { defaultValue: 'Cancel' })}</Button>
+								<Button color="teal" onClick={assignSelectedFromMy} loading={assignMutation.isPending}>
+									{t('routes.ProjectPublicationsAddPage.my.assign_selected', { defaultValue: 'Assign selected' })}
+								</Button>
+							</Group>
+						</Box>
+					)}
 		</Box>
 	);
 };
