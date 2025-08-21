@@ -323,6 +323,12 @@
       "table": {
         "title": "Picked publications"
       },
+      "add_from_my_publications": "Add from My publications",
+      "my": {
+        "title": "My publications",
+        "assign_selected": "Assign selected",
+        "assign_success": "Assigned {{count}} publication(s)"
+      },
       "modal": {
         "title": "Add publication manually",
         "form": {

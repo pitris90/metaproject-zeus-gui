@@ -8,6 +8,7 @@ import { notifications } from '@mantine/notifications';
 
 import { useAddProjectMutation } from '@/modules/project/mutations';
 import { ApiClientError } from '@/modules/api/model';
+import { HTTPError } from 'ky';
 import { requestProjectSchema, type RequestProjectSchema } from '@/modules/project/form';
 import PageBreadcrumbs from '@/components/global/page-breadcrumbs';
 import RequestForm from '@/components/project/request-form';
@@ -33,16 +34,64 @@ const AddProject: React.FC = () => {
 				});
 				navigate(`/project/${projectId}`);
 			},
-			onError: error => {
-				if (error instanceof ApiClientError) {
-					if (error.response.status === 409) {
-						notifications.show({
-							title: 'Project with this title already exists.',
-							message: 'Please choose a different title.',
-							color: 'red'
-						});
-						form.setError('title', { type: 'custom', message: 'Project with this title already exists.' });
-						return;
+			onError: async error => {
+				// Conflict (duplicate title)
+				if (
+					(error instanceof ApiClientError && error.response.status === 409) ||
+					(error instanceof HTTPError && error.response.status === 409)
+				) {
+					notifications.show({
+						title: 'Project with this title already exists.',
+						message: 'Please choose a different title.',
+						color: 'red'
+					});
+					form.setError('title', { type: 'custom', message: 'Project with this title already exists.' });
+					return;
+				}
+
+				// Validation errors from backend
+				if (error instanceof HTTPError && error.response.status === 400) {
+					try {
+						const data = await error.response.json();
+						// Expect common shapes
+						// 1) { errors: { field: 'message', ... } }
+						if (data?.errors && typeof data.errors === 'object' && !Array.isArray(data.errors)) {
+							Object.entries<string>(data.errors).forEach(([field, message]) => {
+								if (field in (form.getValues() as Record<string, unknown>)) {
+									form.setError(field as keyof RequestProjectSchema, { type: 'server', message });
+								}
+							});
+							return;
+						}
+						// 2) { errors: [{ field|name, message }, ...] }
+						if (Array.isArray(data?.errors)) {
+							data.errors.forEach((e: any) => {
+								const field = e?.field ?? e?.name;
+								const message = e?.message;
+								if (field && message && field in (form.getValues() as Record<string, unknown>)) {
+									form.setError(field as keyof RequestProjectSchema, { type: 'server', message });
+								}
+							});
+							return;
+						}
+						// 3) { fieldErrors | violations: [{ field|name, message }] }
+						const list = data?.fieldErrors ?? data?.violations;
+						if (Array.isArray(list)) {
+							list.forEach((e: any) => {
+								const field = e?.field ?? e?.name;
+								const message = e?.message;
+								if (field && message && field in (form.getValues() as Record<string, unknown>)) {
+									form.setError(field as keyof RequestProjectSchema, { type: 'server', message });
+								}
+							});
+							return;
+						}
+						if (data?.message) {
+							notifications.show({ title: 'Failed to create project.', message: data.message, color: 'red' });
+							return;
+						}
+					} catch (_) {
+						// fallthrough to generic error
 					}
 				}
 
