@@ -14,6 +14,7 @@ import { requestProjectSchema, type RequestProjectSchema } from '@/modules/proje
 import CommentsTimeline from '@/components/project/comments-timeline';
 import { useReRequestProjectMutation } from '@/modules/project/mutations';
 import { ApiClientError } from '@/modules/api/model';
+import { HTTPError } from 'ky';
 
 const ProjectRequestPage = () => {
 	const { t } = useTranslation();
@@ -47,18 +48,65 @@ const ProjectRequestPage = () => {
 							navigate(`/project`);
 						});
 				},
-				onError: error => {
-					if (error instanceof ApiClientError) {
-						if (error.response.status === 409) {
-							notifications.show({
-								message: t('routes.ProjectRequestPage.conflict_message'),
-								color: 'red'
-							});
-							form.setError('title', {
-								type: 'custom',
-								message: t('routes.ProjectRequestPage.conflict_message')
-							});
-							return;
+				onError: async error => {
+					// Conflict (duplicate title)
+					if (
+						(error instanceof ApiClientError && error.response.status === 409) ||
+						(error instanceof HTTPError && error.response.status === 409)
+					) {
+						notifications.show({
+							message: t('routes.ProjectRequestPage.conflict_message'),
+							color: 'red'
+						});
+						form.setError('title', {
+							type: 'custom',
+							message: t('routes.ProjectRequestPage.conflict_message')
+						});
+						return;
+					}
+
+					// Validation errors from backend
+					if (error instanceof HTTPError && error.response.status === 400) {
+						try {
+							const data = await error.response.json();
+							// 1) { errors: { field: 'message' } }
+							if (data?.errors && typeof data.errors === 'object' && !Array.isArray(data.errors)) {
+								Object.entries<string>(data.errors).forEach(([field, message]) => {
+									if (field in (form.getValues() as Record<string, unknown>)) {
+										form.setError(field as keyof RequestProjectSchema, { type: 'server', message });
+									}
+								});
+								return;
+							}
+							// 2) { errors: [{ field|name, message }] }
+							if (Array.isArray(data?.errors)) {
+								data.errors.forEach((e: any) => {
+									const field = e?.field ?? e?.name;
+									const message = e?.message;
+									if (field && message && field in (form.getValues() as Record<string, unknown>)) {
+										form.setError(field as keyof RequestProjectSchema, { type: 'server', message });
+									}
+								});
+								return;
+							}
+							// 3) { fieldErrors | violations: [...] }
+							const list = data?.fieldErrors ?? data?.violations;
+							if (Array.isArray(list)) {
+								list.forEach((e: any) => {
+									const field = e?.field ?? e?.name;
+									const message = e?.message;
+									if (field && message && field in (form.getValues() as Record<string, unknown>)) {
+										form.setError(field as keyof RequestProjectSchema, { type: 'server', message });
+									}
+								});
+								return;
+							}
+							if (data?.message) {
+								notifications.show({ message: data.message, color: 'red' });
+								return;
+							}
+						} catch (_) {
+							// fallthrough to generic error
 						}
 					}
 
