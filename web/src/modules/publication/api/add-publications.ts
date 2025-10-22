@@ -8,10 +8,19 @@ export type AddPublicationRequest = {
 };
 
 export const addPublications = async ({ projectId, publications }: AddPublicationRequest) => {
-	await request(`/publication/${projectId}`, {
+	const payload = publications.map(publication => ({
+		title: publication.title,
+		authors: publication.authors,
+		journal: publication.journal,
+		year: publication.year,
+		source: publication.source ?? 'manual',
+		...(publication.uniqueId ? { uniqueId: publication.uniqueId } : {})
+	}));
+
+	await request(`/projects/${projectId}/publications`, {
 		method: Method.POST,
 		json: {
-			publications
+			publications: payload
 		}
 	});
 };

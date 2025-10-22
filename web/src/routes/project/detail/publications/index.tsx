@@ -9,6 +9,7 @@ import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { HTTPError } from 'ky';
 
 import PageBreadcrumbs from '@/components/global/page-breadcrumbs';
 import { useProjectOutletContext } from '@/modules/auth/guards/project-detail-guard';
@@ -25,6 +26,8 @@ import { useAddPublicationsMutation } from '@/modules/publication/mutations';
 import { useAssignMyPublicationMutation, useMyPublicationsQuery } from '@/modules/publication/my-queries';
 import { PUBLICATION_PAGE_SIZES } from '@/modules/publication/constants';
 import { getSortQuery } from '@/modules/api/sorting/utils';
+
+const isHttpError = (value: unknown): value is HTTPError => value instanceof HTTPError;
 
 const ProjectPublicationsAddPage = () => {
 	const { t } = useTranslation();
@@ -175,17 +178,31 @@ const ProjectPublicationsAddPage = () => {
 
 	const assignSelectedFromMy = async () => {
 		if (!selectedMy.length) return;
+		const assignable = selectedMy.filter((publication: Publication): publication is Publication & { id: number } =>
+			typeof publication.id === 'number'
+		);
+		if (!assignable.length) return;
 		try {
 			await Promise.all(
-				selectedMy.map((p: Publication) =>
-					assignMutation.mutateAsync({ id: p.id as number, projectId: project.id })
+				assignable.map((publication: Publication & { id: number }) =>
+					assignMutation.mutateAsync({ id: publication.id, projectId: project.id })
 				)
 			);
-			notifications.show({ message: t('routes.ProjectPublicationsAddPage.my.assign_success', { count: selectedMy.length }) });
+			notifications.show({ message: t('routes.ProjectPublicationsAddPage.my.assign_success', { count: assignable.length }) });
+			await refetchMy();
+			await queryClient.invalidateQueries({ queryKey: ['project', project.id, 'publications'] });
 			closeAddFromMy();
-			await queryClient.refetchQueries({ queryKey: ['project', project.id] });
 			navigate(`/project/${project.id}`);
 		} catch (e) {
+			if (isHttpError(e) && e.response.status === 404) {
+				notifications.show({
+					message: t('routes.ProjectPublicationsAddPage.no_access', {
+						defaultValue: 'You do not have access to update publications in this project.'
+					}),
+					color: 'yellow'
+				});
+				return;
+			}
 			notifications.show({ message: t('routes.ProjectPublicationsAddPage.error.message'), color: 'red' });
 		}
 	};
@@ -197,24 +214,29 @@ const ProjectPublicationsAddPage = () => {
 				publications
 			},
 			{
-				onSuccess: () => {
+				onSuccess: async () => {
 					notifications.show({
 						message: t('routes.ProjectPublicationsAddPage.success.message')
 					});
-					queryClient
-						.refetchQueries({
-							queryKey: ['project', project.id]
-						})
-						.then(() => {
-							navigate(`/project/${project.id}`);
-						});
+					await queryClient.invalidateQueries({ queryKey: ['project', project.id, 'publications'] });
+					navigate(`/project/${project.id}`);
 				},
-				onError: () => {
+				onError: (error: unknown) => {
+				if (isHttpError(error) && error.response.status === 404) {
 					notifications.show({
-						message: t('routes.ProjectPublicationsAddPage.error.message'),
-						color: 'red'
+						message: t('routes.ProjectPublicationsAddPage.no_access', {
+							defaultValue: 'You do not have access to update publications in this project.'
+						}),
+						color: 'yellow'
 					});
+					return;
 				}
+
+				notifications.show({
+					message: t('routes.ProjectPublicationsAddPage.error.message'),
+					color: 'red'
+				});
+			}
 			}
 		);
 	};

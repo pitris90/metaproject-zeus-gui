@@ -9,6 +9,6 @@ export const useProjectPublicationsQuery = (id: number, pagination: Pagination, 
 		queryKey: ['project', id, 'publications', pagination.page, pagination.limit, sortSelector],
 		queryFn: () =>
 			request<PaginationResponse<Publication>>(
-				`/publication/${id}?page=${pagination.page}&limit=${pagination.limit}&sort=${sortSelector}`
+				`/projects/${id}/publications?page=${pagination.page}&limit=${pagination.limit}&sort=${encodeURIComponent(sortSelector)}`
 			)
 	});
