@@ -1,15 +1,17 @@
-import { ActionIcon, Badge, Box, Group, Title } from '@mantine/core';
+import { ActionIcon, Alert, Badge, Box, Group, Title, Tooltip } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
 import { useState } from 'react';
 import { IconLibrary, IconTrash, IconTrashX } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
+import { HTTPError } from 'ky';
 
 import AddPublication from '@/components/project/publications/add-publication';
 import { useProjectPublicationsQuery } from '@/modules/publication/queries';
 import { getSortQuery } from '@/modules/api/sorting/utils';
 import ErrorAlert from '@/components/global/error-alert';
+import { HTTPError } from 'ky';
 import { type Publication } from '@/modules/publication/model';
 import PublicationCard from '@/components/project/publications/publication-card';
 import { PUBLICATION_PAGE_SIZES } from '@/modules/publication/constants';
@@ -36,12 +38,16 @@ const ProjectPublications = ({ id }: ProjectPublicationsType) => {
 
 		const { mutate, isPending: isRemovePending } = useRemovePublicationMutation();
 		const deleteMyMutation = useDeleteMyPublicationMutation();
-	const {
-		data: response,
-		isPending,
-		isError,
-		refetch
-	} = useProjectPublicationsQuery(
+		const isHttpError = (value: unknown): value is HTTPError => value instanceof HTTPError;
+		const {
+			data: response,
+	const { mutate, isPending: isRemovePending } = useRemovePublicationMutation();
+	const deleteMyMutation = useDeleteMyPublicationMutation();
+	const isHttpError = (value: unknown): value is HTTPError => value instanceof HTTPError;
+			isError,
+			error,
+			refetch
+		} = useProjectPublicationsQuery(
 		id,
 		{
 			page,
@@ -55,7 +61,27 @@ const ProjectPublications = ({ id }: ProjectPublicationsType) => {
 	}
 
 	if (isError) {
+			if (isHttpError(error) && error.response.status === 404) {
+				return (
+					<Alert color="yellow" variant="light">
+		if (isHttpError(error) && error.response.status === 404) {
+			return (
+				<Alert color="yellow" variant="light">
+					{t('components.project.publications.index.no_access_alert', {
+						defaultValue: 'You do not have access to view publications for this project.'
+					})}
+				</Alert>
+			);
+		}
+
 		return <ErrorAlert />;
+							defaultValue: 'You do not have access to view publications for this project.'
+						})}
+					</Alert>
+				);
+			}
+
+			return <ErrorAlert />;
 	}
 
 	const metadata = response.metadata;
@@ -76,30 +102,72 @@ const ProjectPublications = ({ id }: ProjectPublicationsType) => {
 		await refetch();
 	};
 
-	const removePublication = (publicationId: number | undefined) => {
+		mutate(
+			{ projectId: id, publicationId },
+			{
+				onSuccess: () => {
+					notifications.show({
+						message: t('components.project.publications.index.notifications.publication_removed')
+					});
+					void refetch();
+				},
+				onError: (error: unknown) => {
+					if (isHttpError(error) && error.response.status === 404) {
+						notifications.show({
+							message: t('components.project.publications.index.notifications.no_access', {
+								defaultValue: 'You do not have access to update publications in this project.'
+							}),
+							color: 'yellow'
+						});
+						return;
+					}
+
+					notifications.show({
+						message: t('components.project.publications.index.notifications.error'),
+						color: 'red'
+					});
+				},
+				onSettled: () => {
+					setCurrentPublication(null);
+				}
+			}
+		);
 		if (publicationId === undefined) {
 			return;
 		}
 
 		setCurrentPublication(publicationId);
 
-		mutate(publicationId, {
-			onSuccess: () => {
-				notifications.show({
-					message: t('components.project.publications.index.notifications.publication_removed')
-				});
-				refetch().then();
-			},
-			onError: () => {
-				notifications.show({
-					message: t('components.project.publications.index.notifications.error'),
-					color: 'red'
-				});
-			},
-			onSettled: () => {
-				setCurrentPublication(null);
+		mutate(
+			{ projectId: id, publicationId },
+			{
+				onSuccess: () => {
+					notifications.show({
+						message: t('components.project.publications.index.notifications.publication_removed')
+					});
+					void refetch();
+				},
+				onError: (error: unknown) => {
+					if (isHttpError(error) && error.response.status === 404) {
+						notifications.show({
+							message: t('components.project.publications.index.notifications.no_access', {
+								defaultValue: 'You do not have access to update publications in this project.'
+							}),
+							color: 'yellow'
+						});
+						return;
+					}
+
+					notifications.show({
+						message: t('components.project.publications.index.notifications.error'),
+						color: 'red'
+					});
+				},
+				onSettled: () => {
+					setCurrentPublication(null);
+				}
 			}
-		});
+		);
 	};
 
 	const removeAndDelete = (publicationId?: number) => {
@@ -184,24 +252,38 @@ const ProjectPublications = ({ id }: ProjectPublicationsType) => {
 						hidden: !permissions.includes('edit_publications'),
 						render: (publication: Publication) => (
 							<Group gap={4} justify="space-between" wrap="nowrap">
-								<ActionIcon
-									size="sm"
-									variant="subtle"
-									color="red"
-									loading={isRemovePending && currentPublication === publication.id}
-									onClick={() => removePublication(publication?.id)}
+								<Tooltip
+									label={t('components.project.publications.index.tooltips.remove', {
+										defaultValue: 'Remove from project'
+									})}
+									withArrow
 								>
-									<IconTrash size={24} />
-								</ActionIcon>
-								{publication.isOwner && (
 									<ActionIcon
 										size="sm"
 										variant="subtle"
 										color="red"
-										onClick={() => removeAndDelete(publication?.id)}
+										loading={isRemovePending && currentPublication === publication.id}
+										onClick={() => removePublication(publication?.id)}
 									>
-										<IconTrashX size={24} />
+										<IconTrash size={24} />
 									</ActionIcon>
+								</Tooltip>
+								{publication.isOwner && (
+									<Tooltip
+										label={t('components.project.publications.index.tooltips.remove_and_delete', {
+											defaultValue: 'Remove and delete from My publications'
+										})}
+										withArrow
+									>
+										<ActionIcon
+											size="sm"
+											variant="subtle"
+											color="red"
+											onClick={() => removeAndDelete(publication?.id)}
+										>
+											<IconTrashX size={24} />
+										</ActionIcon>
+									</Tooltip>
 								)}
 							</Group>
 						)

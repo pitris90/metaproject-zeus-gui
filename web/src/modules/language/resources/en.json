@@ -124,10 +124,17 @@
             "year": "Year",
             "actions": "Actions"
           },
+          "mine_badge": "Mine",
           "notifications": {
             "publication_removed": "Publication removed successfully",
-            "error": "Could not remove publication"
-          }
+            "error": "Could not remove publication",
+            "no_access": "You do not have access to update publications in this project."
+          },
+          "tooltips": {
+            "remove": "Remove from project",
+            "remove_and_delete": "Remove and delete from My publications"
+          },
+          "no_access_alert": "You do not have access to view publications for this project."
         },
         "add_publication": {
           "title": "Add publications"
@@ -329,6 +336,7 @@
         "assign_selected": "Assign selected",
         "assign_success": "Assigned {{count}} publication(s)"
       },
+      "no_access": "You do not have access to update publications in this project.",
       "modal": {
         "title": "Add publication manually",
         "form": {
