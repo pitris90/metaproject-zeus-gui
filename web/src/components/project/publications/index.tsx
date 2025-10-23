@@ -1,58 +1,52 @@
 import { ActionIcon, Alert, Badge, Box, Group, Title, Tooltip } from '@mantine/core';
-import { useTranslation } from 'react-i18next';
-import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { IconLibrary, IconTrash, IconTrashX } from '@tabler/icons-react';
+import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { HTTPError } from 'ky';
 
 import AddPublication from '@/components/project/publications/add-publication';
-import { useProjectPublicationsQuery } from '@/modules/publication/queries';
-import { getSortQuery } from '@/modules/api/sorting/utils';
 import ErrorAlert from '@/components/global/error-alert';
-import { HTTPError } from 'ky';
-import { type Publication } from '@/modules/publication/model';
+import Loading from '@/components/global/loading';
 import PublicationCard from '@/components/project/publications/publication-card';
+import { useProjectOutletContext } from '@/modules/auth/guards/project-detail-guard';
+import { getSortQuery } from '@/modules/api/sorting/utils';
 import { PUBLICATION_PAGE_SIZES } from '@/modules/publication/constants';
 import { useRemovePublicationMutation } from '@/modules/publication/mutations';
 import { useDeleteMyPublicationMutation } from '@/modules/publication/my-queries';
-import Loading from '@/components/global/loading';
-import { useProjectOutletContext } from '@/modules/auth/guards/project-detail-guard';
+import { type Publication } from '@/modules/publication/model';
+import { useProjectPublicationsQuery } from '@/modules/publication/queries';
 
-type ProjectPublicationsType = {
+type ProjectPublicationsProps = {
 	id: number;
 };
 
-const ProjectPublications = ({ id }: ProjectPublicationsType) => {
+const ProjectPublications = ({ id }: ProjectPublicationsProps) => {
 	const { t } = useTranslation();
-
 	const { permissions } = useProjectOutletContext();
 	const [currentPublication, setCurrentPublication] = useState<number | null>(null);
 	const [page, setPage] = useState(1);
 	const [limit, setLimit] = useState(PUBLICATION_PAGE_SIZES[0]);
 	const [sortStatus, setSortStatus] = useState<DataTableSortStatus<Publication>>({
 		columnAccessor: 'id',
-			direction: 'asc'
+		direction: 'asc'
 	});
 
-		const { mutate, isPending: isRemovePending } = useRemovePublicationMutation();
-		const deleteMyMutation = useDeleteMyPublicationMutation();
-		const isHttpError = (value: unknown): value is HTTPError => value instanceof HTTPError;
-		const {
-			data: response,
 	const { mutate, isPending: isRemovePending } = useRemovePublicationMutation();
 	const deleteMyMutation = useDeleteMyPublicationMutation();
 	const isHttpError = (value: unknown): value is HTTPError => value instanceof HTTPError;
-			isError,
-			error,
-			refetch
-		} = useProjectPublicationsQuery(
+
+	const {
+		data: response,
+		isPending,
+		isError,
+		error,
+		refetch
+	} = useProjectPublicationsQuery(
 		id,
-		{
-			page,
-			limit
-		},
+		{ page, limit },
 		getSortQuery(sortStatus.columnAccessor, sortStatus.direction)
 	);
 
@@ -61,10 +55,7 @@ const ProjectPublications = ({ id }: ProjectPublicationsType) => {
 	}
 
 	if (isError) {
-			if (isHttpError(error) && error.response.status === 404) {
-				return (
-					<Alert color="yellow" variant="light">
-		if (isHttpError(error) && error.response.status === 404) {
+		if (isHttpError(error) && error.response?.status === 404) {
 			return (
 				<Alert color="yellow" variant="light">
 					{t('components.project.publications.index.no_access_alert', {
@@ -75,17 +66,10 @@ const ProjectPublications = ({ id }: ProjectPublicationsType) => {
 		}
 
 		return <ErrorAlert />;
-							defaultValue: 'You do not have access to view publications for this project.'
-						})}
-					</Alert>
-				);
-			}
-
-			return <ErrorAlert />;
 	}
 
-	const metadata = response.metadata;
-	const publications = response.data ?? [];
+	const metadata = response?.metadata;
+	const publications = response?.data ?? [];
 
 	const onPageChange = async (newPage: number) => {
 		setPage(newPage);
@@ -97,41 +81,12 @@ const ProjectPublications = ({ id }: ProjectPublicationsType) => {
 		await refetch();
 	};
 
-	const onSortStatusChange = async (sortStatus: DataTableSortStatus<Publication>) => {
-		setSortStatus(sortStatus);
+	const onSortStatusChange = async (status: DataTableSortStatus<Publication>) => {
+		setSortStatus(status);
 		await refetch();
 	};
 
-		mutate(
-			{ projectId: id, publicationId },
-			{
-				onSuccess: () => {
-					notifications.show({
-						message: t('components.project.publications.index.notifications.publication_removed')
-					});
-					void refetch();
-				},
-				onError: (error: unknown) => {
-					if (isHttpError(error) && error.response.status === 404) {
-						notifications.show({
-							message: t('components.project.publications.index.notifications.no_access', {
-								defaultValue: 'You do not have access to update publications in this project.'
-							}),
-							color: 'yellow'
-						});
-						return;
-					}
-
-					notifications.show({
-						message: t('components.project.publications.index.notifications.error'),
-						color: 'red'
-					});
-				},
-				onSettled: () => {
-					setCurrentPublication(null);
-				}
-			}
-		);
+	const removePublication = (publicationId?: number) => {
 		if (publicationId === undefined) {
 			return;
 		}
@@ -147,8 +102,8 @@ const ProjectPublications = ({ id }: ProjectPublicationsType) => {
 					});
 					void refetch();
 				},
-				onError: (error: unknown) => {
-					if (isHttpError(error) && error.response.status === 404) {
+				onError: (mutationError: unknown) => {
+					if (isHttpError(mutationError) && mutationError.response?.status === 404) {
 						notifications.show({
 							message: t('components.project.publications.index.notifications.no_access', {
 								defaultValue: 'You do not have access to update publications in this project.'
@@ -171,7 +126,10 @@ const ProjectPublications = ({ id }: ProjectPublicationsType) => {
 	};
 
 	const removeAndDelete = (publicationId?: number) => {
-		if (!publicationId) return;
+		if (!publicationId) {
+			return;
+		}
+
 		modals.openConfirmModal({
 			title: t('components.project.publications.index.delete_confirm_title', { defaultValue: 'Delete publication?' }),
 			children: t('components.project.publications.index.delete_confirm_text', {
@@ -191,7 +149,7 @@ const ProjectPublications = ({ id }: ProjectPublicationsType) => {
 								{ defaultValue: 'Publication deleted' }
 							)
 						});
-						refetch().then();
+						void refetch();
 					},
 					onError: () => {
 						notifications.show({
@@ -295,3 +253,4 @@ const ProjectPublications = ({ id }: ProjectPublicationsType) => {
 };
 
 export default ProjectPublications;
+
