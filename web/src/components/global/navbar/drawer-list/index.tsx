@@ -39,6 +39,9 @@ const DrawerList = ({ open, onClose }: DrawerListProps) => {
 	const windowSize = useWindowSize();
 	const theme = useMantineTheme();
 	const location = useLocation();
+	const { pathname } = location;
+	const { t } = useTranslation();
+	const { currentRole } = useAdminContext();
 
 	useEffect(() => {
 		if (windowSize < getBreakpointValue(theme.breakpoints.md, theme.breakpoints)) {
@@ -64,7 +67,7 @@ const DrawerList = ({ open, onClose }: DrawerListProps) => {
 		);
 	};
 
-	const LINKS: LinkNode[] = [
+	const baseLinks: LinkNode[] = [
 		{
 			title: 'components.global.drawerList.links.projects.title',
 			href: '/project',
@@ -94,97 +97,98 @@ const DrawerList = ({ open, onClose }: DrawerListProps) => {
 		}
 	];
 
-	// My Publications top-level link
-	LINKS.push({
+	const publicationsLink: LinkNode = {
 		title: 'components.global.drawerList.links.publications.title',
 		href: '/publications',
 		icon: <IconLibrary />
-	});
+	};
 
-	const { pathname } = useLocation();
-	const { t } = useTranslation();
-	const { currentRole } = useAdminContext();
+	const adminLinks: LinkNode = {
+		title: 'components.global.drawerList.links.admin.title',
+		href: '/admin',
+		icon: <IconUserUp />,
+		links: [
+			{
+				title: 'components.global.drawerList.links.admin.link.allocations',
+				href: '/admin/allocations',
+				icon: <IconCpu />
+			},
+			{
+				title: 'components.global.drawerList.links.admin.link.projects',
+				href: '/admin/projects',
+				icon: <IconReport />
+			},
+			{
+				title: 'components.global.drawerList.links.admin.link.resources',
+				href: '/admin/resources',
+				icon: <IconDevices2 />
+			},
+			{
+				title: 'components.global.drawerList.links.admin.link.requests',
+				href: '/admin/requests',
+				icon: <IconQuestionMark />
+			},
+			{
+				title: 'components.global.drawerList.links.admin.link.allocation_requests',
+				href: '/admin/allocation-requests',
+				icon: <IconDeviceDesktopAnalytics />
+			},
+			{
+				title: 'components.global.drawerList.links.admin.link.stages',
+				href: '/admin/stages',
+				icon: <IconPodium />
+			}
+		]
+	};
+
+	const directorLinks: LinkNode = {
+		title: 'components.global.drawerList.links.director.title',
+		href: '/admin',
+		icon: <IconUserUp />,
+		links: [
+			{
+				title: 'components.global.drawerList.links.director.link.allocations',
+				href: '/director/allocations',
+				icon: <IconCpu />
+			},
+			{
+				title: 'components.global.drawerList.links.director.link.projects',
+				href: '/director/projects',
+				icon: <IconReport />
+			},
+			{
+				title: 'components.global.drawerList.links.director.link.resources',
+				href: '/director/resources',
+				icon: <IconDevices2 />
+			},
+			{
+				title: 'components.global.drawerList.links.director.link.requests',
+				href: '/director/requests',
+				icon: <IconQuestionMark />
+			},
+			{
+				title: 'components.global.drawerList.links.director.link.allocation_requests',
+				href: '/director/allocation-requests',
+				icon: <IconDeviceDesktopAnalytics />
+			}
+		]
+	};
+
+	const links: LinkNode[] = [...baseLinks, publicationsLink];
 
 	if (currentRole === Role.ADMIN) {
-		LINKS.push({
-			title: 'components.global.drawerList.links.admin.title',
-			href: '/admin',
-			icon: <IconUserUp />,
-			links: [
-				{
-					title: 'components.global.drawerList.links.admin.link.allocations',
-					href: '/admin/allocations',
-					icon: <IconCpu />
-				},
-				{
-					title: 'components.global.drawerList.links.admin.link.projects',
-					href: '/admin/projects',
-					icon: <IconReport />
-				},
-				{
-					title: 'components.global.drawerList.links.admin.link.resources',
-					href: '/admin/resources',
-					icon: <IconDevices2 />
-				},
-				{
-					title: 'components.global.drawerList.links.admin.link.requests',
-					href: '/admin/requests',
-					icon: <IconQuestionMark />
-				},
-				{
-					title: 'components.global.drawerList.links.admin.link.allocation_requests',
-					href: '/admin/allocation-requests',
-					icon: <IconDeviceDesktopAnalytics />
-				},
-				{
-					title: 'components.global.drawerList.links.admin.link.stages',
-					href: '/admin/stages',
-					icon: <IconPodium />
-				}
-			]
-		});
+		links.push(adminLinks);
 	}
 
 	if (currentRole === Role.DIRECTOR) {
-		LINKS.push({
-			title: 'components.global.drawerList.links.director.title',
-			href: '/admin',
-			icon: <IconUserUp />,
-			links: [
-				{
-					title: 'components.global.drawerList.links.director.link.allocations',
-					href: '/director/allocations',
-					icon: <IconCpu />
-				},
-				{
-					title: 'components.global.drawerList.links.director.link.projects',
-					href: '/director/projects',
-					icon: <IconReport />
-				},
-				{
-					title: 'components.global.drawerList.links.director.link.resources',
-					href: '/director/resources',
-					icon: <IconDevices2 />
-				},
-				{
-					title: 'components.global.drawerList.links.director.link.requests',
-					href: '/director/requests',
-					icon: <IconQuestionMark />
-				},
-				{
-					title: 'components.global.drawerList.links.director.link.allocation_requests',
-					href: '/director/allocation-requests',
-					icon: <IconDeviceDesktopAnalytics />
-				}
-			]
-		});
+		links.push(directorLinks);
 	}
 
 	if (windowSize > getBreakpointValue(theme.breakpoints.md, theme.breakpoints)) {
 		return (
 			<Box className={classes.sidebar} data-opened={open}>
 				<ScrollArea h={`calc(100vh - ${rem(80)})`} mx="-md">
-					<Box px="md">{LINKS.map(link => getLinkTree(link))}</Box>
+					<Box px="md">{links.map(link => getLinkTree(link))}</Box>
 				</ScrollArea>
 			</Box>
 		);
@@ -192,7 +196,7 @@ const DrawerList = ({ open, onClose }: DrawerListProps) => {
 
 	return (
 		<Drawer opened={open} onClose={onClose} withCloseButton={false} padding={0}>
-			<Box mt={64}>{LINKS.map(link => getLinkTree(link))}</Box>
+			<Box mt={64}>{links.map(link => getLinkTree(link))}</Box>
 		</Drawer>
 	);
 };
