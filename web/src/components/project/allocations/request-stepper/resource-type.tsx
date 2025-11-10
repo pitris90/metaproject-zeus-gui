@@ -6,7 +6,8 @@ import {
 	IconDatabase,
 	IconDevices2,
 	IconLicense,
-	IconServer
+	IconServer,
+	IconCloudComputing
 } from '@tabler/icons-react';
 import React from 'react';
 
@@ -14,10 +15,16 @@ import Loading from '@/components/global/loading';
 import ErrorAlert from '@/components/global/error-alert';
 import SelectCard from '@/components/global/select-card';
 import { useResourceTypesQuery } from '@/modules/resource/api/resource-types';
+import { OPENSTACK_RESOURCE_TYPE_NAME } from '@/modules/openstack/constants';
+import { type ResourceType } from '@/modules/resource/model';
 
 // TODO will be type in the future
 const getResourceTypeIcon = (name: string) => {
 	const style = { width: rem(64), height: rem(64) };
+
+	if (name === OPENSTACK_RESOURCE_TYPE_NAME) {
+		return <IconCloudComputing style={style} />;
+	}
 
 	if (name === 'Cloud') {
 		return <IconCloud style={style} />;
@@ -70,7 +77,8 @@ const ResourceTypeStep = ({ setComplete, resourceTypeId, setResourceType }: Reso
 		setComplete();
 	};
 
-	const resourceTypes = data?.filter(resourceType => resourceType.hasResources) ?? [];
+	const resourceTypes: ResourceType[] =
+		data?.filter((resourceType: ResourceType) => resourceType.hasResources) ?? [];
 
 	return (
 		<Group justify="center">
@@ -80,7 +88,7 @@ const ResourceTypeStep = ({ setComplete, resourceTypeId, setResourceType }: Reso
 				</Alert>
 			)}
 			{resourceTypes.length > 0 &&
-				resourceTypes.map(resourceType => (
+				resourceTypes.map((resourceType: ResourceType) => (
 					<SelectCard
 						key={resourceType.id}
 						selected={resourceTypeId === resourceType.id}

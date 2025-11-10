@@ -1,22 +1,58 @@
 import { Button, Fieldset, Group, NumberInput, Select, Stack, TagsInput, Text, TextInput, Textarea } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { Controller, type ControllerRenderProps, type FieldArrayWithId, useFieldArray, useFormContext } from 'react-hook-form';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { type AddAllocationSchema, type OpenstackQuotaEntry } from '@/modules/allocation/form';
-import { hasOpenstackOrganizationCatalog, openstackOrganizations } from '@/modules/openstack/organizations';
+import {
+	getOpenstackWorkplacesByOrganization,
+	hasOpenstackCustomerCatalog,
+	hasOpenstackOrganizationCatalog,
+	hasOpenstackWorkplaceCatalog,
+	openstackCustomers,
+	openstackOrganizations
+} from '@/modules/openstack/organizations';
+
+type SelectOption = {
+	value: string;
+	label: string;
+};
 
 const OpenstackAllocationFields = () => {
 	const form = useFormContext<AddAllocationSchema>();
-	const organizationOptions = useMemo(
+	const [customerOptions, setCustomerOptions] = useState<SelectOption[]>(() => {
+		const options = openstackCustomers.map<SelectOption>(customer => ({
+			value: customer.key,
+			label: customer.label
+		}));
+
+		return options.some((option: SelectOption) => option.value === 'meta')
+			? options
+			: [...options, { value: 'meta', label: 'meta' }];
+	});
+	const organizationOptions = useMemo<SelectOption[]>(
 		() =>
-			openstackOrganizations.map(organization => ({
+			openstackOrganizations.map<SelectOption>(organization => ({
 				value: organization.key,
-				label: `${organization.label} (${organization.key})`
+				label: organization.label
 			})),
 		[]
 	);
 	const hasOrganizationOptions = hasOpenstackOrganizationCatalog && organizationOptions.length > 0;
+	const hasCustomerOptions = hasOpenstackCustomerCatalog && customerOptions.length > 0;
+
+	const selectedOrganizationKey = form.watch('openstack.organizationKey') ?? '';
+	const workplaceOptions = useMemo<SelectOption[]>(
+		() =>
+			selectedOrganizationKey
+				? getOpenstackWorkplacesByOrganization(selectedOrganizationKey).map<SelectOption>(workplace => ({
+					value: workplace.key,
+					label: workplace.label
+				}))
+				: [],
+		[selectedOrganizationKey]
+	);
+	const hasWorkplaceOptions = hasOpenstackWorkplaceCatalog && workplaceOptions.length > 0;
 
 	const openstackErrors = form.formState.errors.openstack;
 
@@ -30,6 +66,22 @@ const OpenstackAllocationFields = () => {
 			append({ key: '', value: 0 } as OpenstackQuotaEntry);
 		}
 	}, [append, fields.length]);
+
+	useEffect(() => {
+		if (!selectedOrganizationKey) {
+			form.setValue('openstack.workplaceKey', '', { shouldDirty: false, shouldValidate: false });
+			return;
+		}
+
+		const currentWorkplace = form.getValues('openstack.workplaceKey');
+		const isValidWorkplace = workplaceOptions.some(
+			(option: SelectOption) => option.value === currentWorkplace
+		);
+
+		if (!isValidWorkplace) {
+			form.setValue('openstack.workplaceKey', '', { shouldDirty: true, shouldValidate: false });
+		}
+	}, [form, selectedOrganizationKey, workplaceOptions]);
 
 	return (
 		<Fieldset legend="OpenStack configuration" mt="md">
@@ -67,12 +119,46 @@ const OpenstackAllocationFields = () => {
 					)}
 				/>
 				<Group grow>
-					<TextInput
-						label="Customer tag"
-						withAsterisk
-						{...form.register('openstack.customerKey')}
-						error={openstackErrors?.customerKey?.message as string}
-					/>
+					{hasCustomerOptions ? (
+						<Controller<AddAllocationSchema>
+							control={form.control}
+							name="openstack.customerKey"
+							render={(props: { field: ControllerRenderProps<AddAllocationSchema, 'openstack.customerKey'> }) => (
+								<Select
+									label="Customer tag"
+									withAsterisk
+									data={customerOptions}
+									searchable
+									creatable
+									value={props.field.value ?? ''}
+									onChange={(value: string | null) => props.field.onChange(value ?? '')}
+									onCreate={(query: string) => {
+										const trimmed = query.trim();
+										if (trimmed.length === 0) {
+											return null;
+										}
+
+										const newOption: SelectOption = { value: trimmed, label: trimmed };
+										setCustomerOptions((current: SelectOption[]) => {
+											const exists = current.some((option: SelectOption) => option.value === trimmed);
+											return exists ? current : [...current, newOption];
+										});
+										props.field.onChange(trimmed);
+										return newOption;
+									}}
+									getCreateLabel={(query: string) => `Use "${query}"`}
+									error={openstackErrors?.customerKey?.message as string}
+								/>
+							)}
+						/>
+					) : (
+						<TextInput
+							label="Customer tag"
+							withAsterisk
+							{...form.register('openstack.customerKey')}
+							error={openstackErrors?.customerKey?.message as string}
+						/>
+					)}
 					{hasOrganizationOptions ? (
 						<Controller<AddAllocationSchema>
 							control={form.control}
@@ -84,7 +170,11 @@ const OpenstackAllocationFields = () => {
 									data={organizationOptions}
 									searchable
 									value={props.field.value ?? ''}
-									onChange={(value: string | null) => props.field.onChange(value ?? '')}
+									onChange={(value: string | null) => {
+										const nextValue = value ?? '';
+										props.field.onChange(nextValue);
+										form.setValue('openstack.workplaceKey', '', { shouldDirty: true, shouldValidate: false });
+									}}
 									error={openstackErrors?.organizationKey?.message as string}
 								/>
 							)}
@@ -98,12 +188,34 @@ const OpenstackAllocationFields = () => {
 							error={openstackErrors?.organizationKey?.message as string}
 						/>
 					)}
-					<TextInput
-						label="Workplace tag"
-						withAsterisk
-						{...form.register('openstack.workplaceKey')}
-						error={openstackErrors?.workplaceKey?.message as string}
-					/>
+					{hasWorkplaceOptions ? (
+						<Controller<AddAllocationSchema>
+							control={form.control}
+							name="openstack.workplaceKey"
+							render={(props: { field: ControllerRenderProps<AddAllocationSchema, 'openstack.workplaceKey'> }) => (
+								<Select
+									label="Workplace"
+									withAsterisk
+									data={workplaceOptions}
+									searchable
+									disabled={!selectedOrganizationKey}
+									placeholder={selectedOrganizationKey ? undefined : 'Select organization first'}
+									value={props.field.value ?? ''}
+									onChange={(value: string | null) => props.field.onChange(value ?? '')}
+									error={openstackErrors?.workplaceKey?.message as string}
+								/>
+							)}
+						/>
+					) : (
+						<TextInput
+							label="Workplace tag"
+							withAsterisk
+							placeholder={selectedOrganizationKey ? 'Enter workplace key' : 'Select organization first'}
+							{...form.register('openstack.workplaceKey')}
+							disabled={!selectedOrganizationKey}
+							error={openstackErrors?.workplaceKey?.message as string}
+						/>
+					)}
 				</Group>
 				<Text size="sm" c="dimmed">
 					Customer, organization, workplace, and additional tags will be validated when the request is saved.
@@ -142,7 +254,7 @@ const OpenstackAllocationFields = () => {
 											withAsterisk
 											min={0}
 											value={props.field.value ?? 0}
-											onChange={value => {
+											onChange={(value: string | number | null) => {
 												if (value === '' || value === null) {
 													props.field.onChange(0);
 													return;

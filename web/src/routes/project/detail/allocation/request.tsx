@@ -71,7 +71,7 @@ const AllocationRequest = () => {
 		const requestBody: AllocationRequestPayload = {
 			justification: data.justification,
 			resourceId: data.resourceId,
-			quantity: data.quantity ?? undefined
+			quantity: data.quantity ?? 1
 		};
 
 		if (isOpenstackResourceSelected && data.openstack) {
@@ -83,15 +83,19 @@ const AllocationRequest = () => {
 				return acc;
 			}, {});
 
+			const customerKey = data.openstack.customerKey.trim();
+			const organizationKey = data.openstack.organizationKey.trim();
+			const workplaceKey = data.openstack.workplaceKey.trim();
+
 			requestBody.openstack = {
-				domain: data.openstack.domain,
-				projectDescription: data.openstack.projectDescription,
+				domain: data.openstack.domain.trim(),
+				projectDescription: data.openstack.projectDescription.trim(),
 				disableDate: data.openstack.disableDate
 					? dayjs(data.openstack.disableDate).format('YYYY-MM-DD')
 					: undefined,
-				customerKey: data.openstack.customerKey,
-				organizationKey: data.openstack.organizationKey,
-				workplaceKey: data.openstack.workplaceKey,
+				customerKey,
+				organizationKey,
+				workplaceKey,
 				quota,
 				additionalTags: data.openstack.additionalTags
 					?.map((tag: string) => tag.trim())
