@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { Box, Button, Group, Stack, Stepper, Text, Title } from '@mantine/core';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
+import dayjs from 'dayjs';
 
 import { useProjectOutletContext } from '@/modules/auth/guards/project-detail-guard';
 import PageBreadcrumbs from '@/components/global/page-breadcrumbs';
@@ -14,8 +15,13 @@ import ResourceStep from '@/components/project/allocations/request-stepper/resou
 import Loading from '@/components/global/loading';
 import ErrorAlert from '@/components/global/error-alert';
 import { addAllocationSchema, type AddAllocationSchema } from '@/modules/allocation/form';
-import { useRequestAllocationMutation } from '@/modules/allocation/api/request-allocation';
+import {
+	AllocationRequestPayload,
+	useRequestAllocationMutation
+} from '@/modules/allocation/api/request-allocation';
 import { useResourceListQuery } from '@/modules/resource/api/resources';
+import { OPENSTACK_RESOURCE_TYPE_NAME } from '@/modules/openstack/constants';
+import { type Resource } from '@/modules/resource/model';
 
 const MAX_STEPS = 2;
 
@@ -26,7 +32,10 @@ const AllocationRequest = () => {
 	const navigate = useNavigate();
 
 	const form = useForm<AddAllocationSchema>({
-		resolver: zodResolver(addAllocationSchema)
+		resolver: zodResolver(addAllocationSchema),
+		defaultValues: {
+			openstack: undefined
+		}
 	});
 
 	const [active, setActive] = useState(0);
@@ -37,8 +46,14 @@ const AllocationRequest = () => {
 	const { mutate, isPending: isFormPending } = useRequestAllocationMutation();
 	const { data: resources, isPending, isError } = useResourceListQuery();
 
-	const nextStep = () => setActive(current => (current < MAX_STEPS ? current + 1 : current));
-	const prevStep = () => setActive(current => (current > 0 ? current - 1 : current));
+	const nextStep = () => setActive((current: number) => (current < MAX_STEPS ? current + 1 : current));
+	const prevStep = () => setActive((current: number) => (current > 0 ? current - 1 : current));
+
+	const filteredResources = useMemo(
+		() =>
+			resources?.filter((resource: Resource) => resource.resourceType.id === resourceType) ?? [],
+		[resources, resourceType]
+	);
 
 	if (isPending) {
 		return <Loading />;
@@ -49,10 +64,49 @@ const AllocationRequest = () => {
 	}
 
 	const onSubmit = (data: AddAllocationSchema) => {
+		const selectedResource = resources?.find((resource: Resource) => resource.id === Number(data.resourceId));
+		const isOpenstackResourceSelected =
+			selectedResource?.resourceType?.name?.toLowerCase() === OPENSTACK_RESOURCE_TYPE_NAME.toLowerCase();
+
+		const requestBody: AllocationRequestPayload = {
+			justification: data.justification,
+			resourceId: data.resourceId,
+			quantity: data.quantity ?? undefined
+		};
+
+		if (isOpenstackResourceSelected && data.openstack) {
+			const quota = data.openstack.quota.reduce<Record<string, number>>((acc, entry: { key: string; value: number }) => {
+				const key = entry.key.trim();
+				if (key.length > 0) {
+					acc[key] = entry.value;
+				}
+				return acc;
+			}, {});
+
+			requestBody.openstack = {
+				domain: data.openstack.domain,
+				projectDescription: data.openstack.projectDescription,
+				disableDate: data.openstack.disableDate
+					? dayjs(data.openstack.disableDate).format('YYYY-MM-DD')
+					: undefined,
+				customerKey: data.openstack.customerKey,
+				organizationKey: data.openstack.organizationKey,
+				workplaceKey: data.openstack.workplaceKey,
+				quota,
+				additionalTags: data.openstack.additionalTags
+					?.map((tag: string) => tag.trim())
+					.filter((tag: string) => tag.length > 0)
+			};
+		}
+
+		if (!isOpenstackResourceSelected) {
+			delete requestBody.openstack;
+		}
+
 		mutate(
 			{
 				projectId: project.id,
-				...data
+				...requestBody
 			},
 			{
 				onSuccess: () => {
@@ -112,9 +166,7 @@ const AllocationRequest = () => {
 								description={t('routes.AllocationRequest.form.step2.description')}
 							>
 								<ResourceStep
-									resources={
-										resources?.filter(resource => resource.resourceType.id === resourceType) ?? []
-									}
+									resources={filteredResources}
 									selectedResourceId={selectedResourceId}
 									setSelectedResourceId={setSelectedResourceId}
 									isPending={isFormPending}

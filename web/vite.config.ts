@@ -13,6 +13,9 @@ export default defineConfig({
 		port: 5137,
 		watch: {
 			usePolling: true
+		},
+		fs: {
+			allow: ['..', '../..']
 		}
 	}
 });
