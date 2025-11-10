@@ -5,13 +5,13 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { type AddAllocationSchema, type OpenstackQuotaEntry } from '@/modules/allocation/form';
 import {
+	ensureMetaCustomerOption,
 	getOpenstackWorkplacesByOrganization,
-	hasOpenstackCustomerCatalog,
-	hasOpenstackOrganizationCatalog,
-	hasOpenstackWorkplaceCatalog,
-	openstackCustomers,
-	openstackOrganizations
+	mergeCustomerOptions,
+	type OpenstackCatalogEntry,
+	type OpenstackWorkplaceEntry
 } from '@/modules/openstack/organizations';
+import { useOpenstackCatalogQuery } from '@/modules/openstack/api/catalog';
 
 type SelectOption = {
 	value: string;
@@ -20,39 +20,53 @@ type SelectOption = {
 
 const OpenstackAllocationFields = () => {
 	const form = useFormContext<AddAllocationSchema>();
-	const [customerOptions, setCustomerOptions] = useState<SelectOption[]>(() => {
-		const options = openstackCustomers.map<SelectOption>(customer => ({
-			value: customer.key,
-			label: customer.label
-		}));
+	const { data: catalog } = useOpenstackCatalogQuery();
+	const [customerOptions, setCustomerOptions] = useState<SelectOption[]>([]);
 
-		return options.some((option: SelectOption) => option.value === 'meta')
-			? options
-			: [...options, { value: 'meta', label: 'meta' }];
-	});
-	const organizationOptions = useMemo<SelectOption[]>(
-		() =>
-			openstackOrganizations.map<SelectOption>(organization => ({
-				value: organization.key,
-				label: organization.label
-			})),
-		[]
-	);
-	const hasOrganizationOptions = hasOpenstackOrganizationCatalog && organizationOptions.length > 0;
-	const hasCustomerOptions = hasOpenstackCustomerCatalog && customerOptions.length > 0;
+	useEffect(() => {
+		if (!catalog) {
+			return;
+		}
+
+		const incoming = ensureMetaCustomerOption(catalog.customers);
+
+		setCustomerOptions((current: SelectOption[]) =>
+			mergeCustomerOptions(
+				current.map((option: SelectOption) => ({ key: option.value, label: option.label })),
+				incoming
+			).map((entry: OpenstackCatalogEntry) => ({ value: entry.key, label: entry.label }))
+		);
+	}, [catalog]);
+
+	const organizationOptions = useMemo<SelectOption[]>(() => {
+		if (!catalog) {
+			return [];
+		}
+
+		return catalog.organizations.map((organization: OpenstackCatalogEntry) => ({
+			value: organization.key,
+			label: organization.label
+		}));
+	}, [catalog]);
 
 	const selectedOrganizationKey = form.watch('openstack.organizationKey') ?? '';
-	const workplaceOptions = useMemo<SelectOption[]>(
-		() =>
+	const workplaceOptions = useMemo<SelectOption[]>(() => {
+		if (!catalog || !selectedOrganizationKey) {
+			return [];
+		}
+
+		return getOpenstackWorkplacesByOrganization(
+			catalog.workplaces,
 			selectedOrganizationKey
-				? getOpenstackWorkplacesByOrganization(selectedOrganizationKey).map<SelectOption>(workplace => ({
-					value: workplace.key,
-					label: workplace.label
-				}))
-				: [],
-		[selectedOrganizationKey]
-	);
-	const hasWorkplaceOptions = hasOpenstackWorkplaceCatalog && workplaceOptions.length > 0;
+		).map((workplace: OpenstackWorkplaceEntry) => ({
+			value: workplace.key,
+			label: workplace.label
+		}));
+	}, [catalog, selectedOrganizationKey]);
+
+	const hasOrganizationOptions = organizationOptions.length > 0;
+	const hasCustomerOptions = customerOptions.length > 0;
+	const hasWorkplaceOptions = workplaceOptions.length > 0;
 
 	const openstackErrors = form.formState.errors.openstack;
 
