@@ -7,7 +7,7 @@ type SelectCardProps = {
 	selected: boolean;
 	onClick: () => void;
 	size?: number;
-	icon: React.ReactNode;
+	icon: unknown;
 	label: string;
 	description: string;
 };

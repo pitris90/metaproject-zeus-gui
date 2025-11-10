@@ -73,7 +73,7 @@ const ResourceStep = ({ resources, setSelectedResourceId, selectedResourceId, is
 					domain: '',
 					projectDescription: '',
 					disableDate: null,
-					customerKey: '',
+					customerKey: 'meta',
 					organizationKey: '',
 					workplaceKey: '',
 					quota: defaultQuota,
@@ -82,6 +82,10 @@ const ResourceStep = ({ resources, setSelectedResourceId, selectedResourceId, is
 				{ shouldDirty: false, shouldValidate: false }
 			);
 			return;
+		}
+
+		if (!current.customerKey) {
+			form.setValue('openstack.customerKey', 'meta', { shouldDirty: false, shouldValidate: false });
 		}
 
 		if (!current.quota || current.quota.length === 0) {
