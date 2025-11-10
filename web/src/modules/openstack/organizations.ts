@@ -11,11 +11,6 @@ export type OpenstackWorkplaceEntry = {
 	label: string;
 };
 
-const importCsv = (pattern: string): string | undefined => {
-	const modules = import.meta.glob<string>(pattern, { as: 'raw', eager: true }) as CsvModuleRecord;
-	return Object.values(modules)[0] as string | undefined;
-};
-
 const parseKeyLabelCsv = (raw: string): OpenstackCatalogEntry[] => {
 	const lines = raw
 		.split('\n')
@@ -65,15 +60,22 @@ const parseWorkplacesCsv = (raw: string): OpenstackWorkplaceEntry[] => {
 		);
 };
 
-const organizationsCsv = importCsv(
-	'../../../../../api/src/openstack-module/openstack-external/ci/ostack-project-tags-enums/ostack-projects-organizations.csv'
-);
-const customersCsv = importCsv(
-	'../../../../../api/src/openstack-module/openstack-external/ci/ostack-project-tags-enums/ostack-projects-customers.csv'
-);
-const workplacesCsv = importCsv(
-	'../../../../../api/src/openstack-module/openstack-external/ci/ostack-project-tags-enums/ostack-projects-workplaces.csv'
-);
+const organizationModules = import.meta.glob<string>(
+	'../../../../../api/src/openstack-module/openstack-external/ci/ostack-project-tags-enums/ostack-projects-organizations.csv',
+	{ as: 'raw', eager: true }
+) as CsvModuleRecord;
+const customerModules = import.meta.glob<string>(
+	'../../../../../api/src/openstack-module/openstack-external/ci/ostack-project-tags-enums/ostack-projects-customers.csv',
+	{ as: 'raw', eager: true }
+) as CsvModuleRecord;
+const workplaceModules = import.meta.glob<string>(
+	'../../../../../api/src/openstack-module/openstack-external/ci/ostack-project-tags-enums/ostack-projects-workplaces.csv',
+	{ as: 'raw', eager: true }
+) as CsvModuleRecord;
+
+const organizationsCsv = Object.values(organizationModules)[0] as string | undefined;
+const customersCsv = Object.values(customerModules)[0] as string | undefined;
+const workplacesCsv = Object.values(workplaceModules)[0] as string | undefined;
 
 export const openstackOrganizations: OpenstackCatalogEntry[] = organizationsCsv
 	? parseKeyLabelCsv(organizationsCsv)
