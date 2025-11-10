@@ -9,4 +9,16 @@ interface ImportMetaEnv {
 }
 interface ImportMeta {
 	readonly env: ImportMetaEnv;
+	glob<T = unknown>(
+		pattern: string,
+		options?: {
+			as?: 'raw' | 'url' | 'json';
+			eager?: boolean;
+		}
+	): Record<string, T>;
+}
+
+declare module '*.csv?raw' {
+	const content: string;
+	export default content;
 }

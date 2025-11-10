@@ -2,9 +2,25 @@ import { useMutation } from '@tanstack/react-query';
 
 import { Method } from '@/modules/api/model';
 import { request } from '@/modules/api/request';
-import { type AddAllocationSchema } from '@/modules/allocation/form';
+export type AllocationOpenstackRequestPayload = {
+	domain: string;
+	projectDescription: string;
+	disableDate?: string;
+	customerKey: string;
+	organizationKey: string;
+	workplaceKey: string;
+	quota: Record<string, number>;
+	additionalTags?: string[];
+};
 
-type RequestAllocationSchema = AddAllocationSchema & {
+export type AllocationRequestPayload = {
+	justification: string;
+	resourceId: string;
+	quantity?: number;
+	openstack?: AllocationOpenstackRequestPayload;
+};
+
+type RequestAllocationSchema = AllocationRequestPayload & {
 	projectId: number;
 };
 
