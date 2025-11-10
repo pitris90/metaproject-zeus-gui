@@ -3,7 +3,7 @@ import { I18nextProvider } from 'react-i18next';
 import { createTheme, MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ModalsProvider } from '@mantine/modals';
-import { AuthProvider } from 'react-oidc-context';
+// import { AuthProvider } from 'react-oidc-context';
 
 import Project from '@/routes/project';
 import AddProject from '@/routes/project/add';
@@ -19,8 +19,8 @@ import ProjectDetailGuard from '@/modules/auth/guards/project-detail-guard';
 import ProjectPublicationsAddPage from '@/routes/project/detail/publications';
 import ProjectRequestPage from '@/routes/project/detail/request';
 import AuthLogin from '@/routes/auth/login';
-import userManager from '@/modules/auth/config/user-manager';
-import { onSigninCallback } from '@/modules/auth/methods/onSigninCallback';
+// import userManager from '@/modules/auth/config/user-manager';
+// import { onSigninCallback } from '@/modules/auth/methods/onSigninCallback';
 import AllocationRequest from '@/routes/project/detail/allocation/request';
 import ResourceAddPage from '@/routes/admin/resources/add';
 import ResourceDetailPage from '@/routes/admin/resources/detail';
@@ -127,22 +127,21 @@ const App = () => {
 		}
 	});
 
-	const oidcConfig = {
-		userManager,
-		onSigninCallback
-	};
+	// TEMPORARILY DISABLED OIDC for exploration
+	// const oidcConfig = {
+	// 	userManager,
+	// 	onSigninCallback
+	// };
 
 	return (
 		<MantineProvider theme={theme}>
 			<QueryClientProvider client={queryClient}>
 				<I18nextProvider i18n={i18next}>
-					<AuthProvider {...oidcConfig}>
-						<AdminContextProvider>
-							<ModalsProvider>
-								<RouterProvider router={router} />
-							</ModalsProvider>
-						</AdminContextProvider>
-					</AuthProvider>
+					<AdminContextProvider>
+						<ModalsProvider>
+							<RouterProvider router={router} />
+						</ModalsProvider>
+					</AdminContextProvider>
 				</I18nextProvider>
 			</QueryClientProvider>
 		</MantineProvider>

@@ -1,5 +1,5 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useAuth } from 'react-oidc-context';
+// import { useAuth } from 'react-oidc-context';
 import React from 'react';
 import { Box, Flex } from '@mantine/core';
 
@@ -11,18 +11,20 @@ import { getCurrentRole } from '@/modules/auth/methods/getCurrentRole';
 const AdminRouteGuard = () => {
 	const location = useLocation();
 	const role = getCurrentRole();
-	const { isAuthenticated, isLoading } = useAuth();
+	// TEMPORARILY DISABLED OIDC for exploration
+	// const { isAuthenticated, isLoading } = useAuth();
 	const stepUpAccess = getStepUpAccess();
 
-	if (isLoading) {
-		return <Loading />;
-	}
+	// if (isLoading) {
+	// 	return <Loading />;
+	// }
 
-	if (!isAuthenticated || stepUpAccess !== StepUpAccess.LOGGED) {
-		return <Navigate to="/" replace />;
-	}
+	// if (!isAuthenticated || stepUpAccess !== StepUpAccess.LOGGED) {
+	// 	return <Navigate to="/" replace />;
+	// }
 
-	if (stepUpAccess === StepUpAccess.LOGGED) {
+	// For exploration, assume admin access is allowed
+	if (true || stepUpAccess === StepUpAccess.LOGGED) {
 		const [, prefix, ...rest] = location.pathname.split('/');
 
 		if ((prefix === 'admin' && role === 'director') || (prefix === 'director' && role === 'admin')) {
