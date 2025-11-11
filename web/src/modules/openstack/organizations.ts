@@ -30,14 +30,3 @@ export const mergeCustomerOptions = (
 
 	return Array.from(map.values());
 };
-
-export const ensureMetaCustomerOption = (
-	customers: OpenstackCatalogEntry[]
-): OpenstackCatalogEntry[] => {
-	const hasMeta = customers.some(entry => entry.key === 'meta');
-	if (hasMeta) {
-		return customers;
-	}
-
-	return [...customers, { key: 'meta', label: 'meta' }];
-};

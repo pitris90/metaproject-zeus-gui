@@ -1,11 +1,13 @@
 import { Anchor, Box, Button, Divider, Flex, Group, Select, Stack, Text, Textarea, Title } from '@mantine/core';
 import dayjs from 'dayjs';
 import { DataTable } from 'mantine-datatable';
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, type ControllerRenderProps, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { DateInput } from '@mantine/dates';
+import { notifications } from '@mantine/notifications';
+import { HTTPError } from 'ky';
 
 import { type AllocationDetail } from '@/modules/allocation/model';
 import { getCurrentRole } from '@/modules/auth/methods/getCurrentRole';
@@ -22,16 +24,91 @@ type AllocationInfoProps = {
 const AllocationInfo = ({ allocation, isApprovePage, onSuccess }: AllocationInfoProps) => {
 	const role = getCurrentRole();
 	const showAdminPage = role === Role.ADMIN && isApprovePage;
+	const defaultStatus = useMemo<string>(() => (allocation.status === 'new' ? 'active' : allocation.status), [allocation.status]);
+	const defaultStartDate = useMemo<Date | undefined>(
+		() => (allocation.startDate ? new Date(allocation.startDate) : undefined),
+		[allocation.startDate]
+	);
+	const defaultEndDate = useMemo<Date>(
+		() => (allocation.endDate ? new Date(allocation.endDate) : dayjs().add(1, 'year').toDate()),
+		[allocation.endDate]
+	);
+
 	const {
 		control,
 		register,
 		handleSubmit,
-		formState: { errors }
+		formState: { errors },
+		watch,
+		setValue,
+		getValues
 	} = useForm<ApproveAllocationSchema>({
-		resolver: zodResolver(approveAllocationSchema)
+		resolver: zodResolver(approveAllocationSchema),
+		defaultValues: {
+			startDate: defaultStartDate,
+			endDate: allocation.status === 'denied' ? undefined : defaultEndDate,
+			status: defaultStatus,
+			description: allocation.description ?? ''
+		}
 	});
 
+	const status = watch('status');
 	const { mutate, isPending } = useApproveAllocationMutation();
+	const statusOptions = useMemo(
+		() => [
+			{ value: 'new', label: 'New' },
+			{ value: 'active', label: 'Active' },
+			{ value: 'expired', label: 'Expired' },
+			{ value: 'denied', label: 'Denied' },
+			{ value: 'revoked', label: 'Revoked' }
+		],
+		[]
+	);
+
+	useEffect(() => {
+		if (status === 'denied') {
+			setValue('endDate', undefined, { shouldDirty: true, shouldValidate: true });
+			return;
+		}
+
+		const currentEndDate = getValues('endDate');
+		if (!currentEndDate) {
+			setValue('endDate', defaultEndDate, { shouldDirty: false, shouldValidate: false });
+		}
+	}, [status, setValue, getValues, defaultEndDate]);
+
+	const showSuccessNotification = () => {
+		notifications.show({ color: 'green', message: 'Allocation status updated.' });
+	};
+
+	const showErrorNotification = async (error: unknown) => {
+		let message = 'Unable to update allocation status.';
+
+		if (!(error instanceof HTTPError)) {
+			notifications.show({ color: 'red', message });
+			return;
+		}
+
+		const httpError = error as HTTPError;
+		const response = httpError.response;
+		try {
+			const body = await response.clone().json();
+			if (body && typeof body.message === 'string') {
+				message = body.message;
+			}
+		} catch {
+			try {
+				const text = await response.text();
+				if (text) {
+					message = text;
+				}
+			} catch {
+				// ignore secondary parsing issues
+			}
+		}
+
+		notifications.show({ color: 'red', message });
+	};
 
 	const onApprove = (data: ApproveAllocationSchema) => {
 		mutate(
@@ -41,21 +118,31 @@ const AllocationInfo = ({ allocation, isApprovePage, onSuccess }: AllocationInfo
 			},
 			{
 				onSuccess: () => {
+					showSuccessNotification();
 					onSuccess?.();
+				},
+				onError: async (error: unknown) => {
+					await showErrorNotification(error);
 				}
 			}
 		);
 	};
 
 	const onDeny = () => {
+		const description = getValues('description');
 		mutate(
 			{
 				allocationId: allocation.id,
-				status: 'denied'
+				status: 'denied',
+				description
 			},
 			{
 				onSuccess: () => {
+					showSuccessNotification();
 					onSuccess?.();
+				},
+				onError: async (error: unknown) => {
+					await showErrorNotification(error);
 				}
 			}
 		);
@@ -102,19 +189,19 @@ const AllocationInfo = ({ allocation, isApprovePage, onSuccess }: AllocationInfo
 							</>
 						)}
 						{showAdminPage && (
-							<Controller
+							<Controller<ApproveAllocationSchema>
 								control={control}
 								name="startDate"
-								defaultValue={allocation.startDate ? new Date(allocation.startDate) : undefined}
-								render={({ field }) => (
+								render={(props: { field: ControllerRenderProps<ApproveAllocationSchema, 'startDate'> }) => (
 									<DateInput
 										label="Start date"
-										name={field.name}
-										value={field.value}
+										name={props.field.name}
+										value={props.field.value ?? null}
 										error={errors.startDate?.message}
-										onChange={value => {
-											field.onChange(value);
+										onChange={(value: Date | null) => {
+											props.field.onChange(value ?? undefined);
 										}}
+										clearable
 									/>
 								)}
 							/>
@@ -132,19 +219,20 @@ const AllocationInfo = ({ allocation, isApprovePage, onSuccess }: AllocationInfo
 							</>
 						)}
 						{showAdminPage && (
-							<Controller
+							<Controller<ApproveAllocationSchema>
 								control={control}
 								name="endDate"
-								defaultValue={allocation.endDate ? new Date(allocation.endDate) : undefined}
-								render={({ field }) => (
+								render={(props: { field: ControllerRenderProps<ApproveAllocationSchema, 'endDate'> }) => (
 									<DateInput
-										withAsterisk
+										withAsterisk={status !== 'denied'}
 										label="End date"
-										name={field.name}
+										name={props.field.name}
 										error={errors.endDate?.message}
-										value={field.value}
-										onChange={value => {
-											field.onChange(value);
+										value={props.field.value ?? null}
+										disabled={status === 'denied'}
+										clearable
+										onChange={(value: Date | null) => {
+											props.field.onChange(value ?? undefined);
 										}}
 									/>
 								)}
@@ -153,26 +241,20 @@ const AllocationInfo = ({ allocation, isApprovePage, onSuccess }: AllocationInfo
 					</Group>
 					{showAdminPage && (
 						<Group my={5}>
-							<Controller
+							<Controller<ApproveAllocationSchema>
 								control={control}
 								name="status"
-								defaultValue={allocation.status}
-								render={({ field }) => (
+								render={(props: { field: ControllerRenderProps<ApproveAllocationSchema, 'status'> }) => (
 									<Select
 										label="Status"
-										name={field.name}
+										name={props.field.name}
 										error={errors.status?.message}
-										value={field.value}
-										data={[
-											{ value: 'new', label: 'New' },
-											{ value: 'active', label: 'Active' },
-											{ value: 'expired', label: 'Expired' },
-											{ value: 'denied', label: 'Denied' },
-											{ value: 'revoked', label: 'Revoked' }
-										]}
-										onChange={value => {
+										value={props.field.value ?? ''}
+										data={statusOptions}
+										allowDeselect={false}
+										onChange={(value: string | null) => {
 											if (value) {
-												field.onChange(value);
+												props.field.onChange(value);
 											}
 										}}
 									/>
@@ -232,7 +314,7 @@ const AllocationInfo = ({ allocation, isApprovePage, onSuccess }: AllocationInfo
 					<Button type="submit" color="green" loading={isPending}>
 						Approve
 					</Button>
-					<Button color="red" loading={isPending} onClick={onDeny}>
+					<Button type="button" color="red" loading={isPending} onClick={onDeny}>
 						Deny
 					</Button>
 				</Group>

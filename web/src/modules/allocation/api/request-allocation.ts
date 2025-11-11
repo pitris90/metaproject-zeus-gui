@@ -6,6 +6,7 @@ export type AllocationOpenstackRequestPayload = {
 	domain: string;
 	projectDescription: string;
 	disableDate?: string;
+	mainTag: string;
 	customerKey: string;
 	organizationKey: string;
 	workplaceKey: string;

@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { type AddAllocationSchema, type OpenstackQuotaEntry } from '@/modules/allocation/form';
 import {
-	ensureMetaCustomerOption,
 	getOpenstackWorkplacesByOrganization,
 	mergeCustomerOptions,
 	type OpenstackCatalogEntry,
@@ -28,12 +27,10 @@ const OpenstackAllocationFields = () => {
 			return;
 		}
 
-		const incoming = ensureMetaCustomerOption(catalog.customers);
-
 		setCustomerOptions((current: SelectOption[]) =>
 			mergeCustomerOptions(
 				current.map((option: SelectOption) => ({ key: option.value, label: option.label })),
-				incoming
+				catalog.customers
 			).map((entry: OpenstackCatalogEntry) => ({ value: entry.key, label: entry.label }))
 		);
 	}, [catalog]);
@@ -103,6 +100,14 @@ const OpenstackAllocationFields = () => {
 				<Text size="sm" c="dimmed">
 					These values are used to generate the GitOps OpenStack YAML once the allocation is approved.
 				</Text>
+				<TextInput
+					label="Main tag"
+					description="Primary OpenStack tag that prefixes every allocation"
+					withAsterisk
+					placeholder="e.g. meta"
+					{...form.register('openstack.mainTag')}
+					error={openstackErrors?.mainTag?.message as string}
+				/>
 				<TextInput
 					label="OpenStack domain"
 					withAsterisk

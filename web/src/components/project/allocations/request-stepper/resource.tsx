@@ -73,7 +73,8 @@ const ResourceStep = ({ resources, setSelectedResourceId, selectedResourceId, is
 					domain: '',
 					projectDescription: '',
 					disableDate: null,
-					customerKey: 'meta',
+					mainTag: 'meta',
+					customerKey: '',
 					organizationKey: '',
 					workplaceKey: '',
 					quota: defaultQuota,
@@ -84,8 +85,12 @@ const ResourceStep = ({ resources, setSelectedResourceId, selectedResourceId, is
 			return;
 		}
 
-		if (!current.customerKey) {
-			form.setValue('openstack.customerKey', 'meta', { shouldDirty: false, shouldValidate: false });
+		if (!current.mainTag) {
+			form.setValue('openstack.mainTag', 'meta', { shouldDirty: false, shouldValidate: false });
+		}
+
+		if (current.customerKey === 'meta') {
+			form.setValue('openstack.customerKey', '', { shouldDirty: false, shouldValidate: false });
 		}
 
 		if (!current.quota || current.quota.length === 0) {

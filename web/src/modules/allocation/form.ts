@@ -27,6 +27,10 @@ export const openstackAllocationSchema = z.object({
 	domain: z.string().min(1),
 	projectDescription: z.string().min(5),
 	disableDate: z.date().nullable().optional(),
+	mainTag: z
+		.string()
+		.min(1)
+		.regex(/^[a-z0-9][a-z0-9_.-]*$/),
 	customerKey: z.string().min(1),
 	organizationKey: z.string().min(1),
 	workplaceKey: z.string().min(1),
@@ -45,11 +49,21 @@ export type AddAllocationSchema = z.infer<typeof addAllocationSchema>;
 export type OpenstackAllocationForm = z.infer<typeof openstackAllocationSchema>;
 export type OpenstackQuotaEntry = z.infer<typeof openstackQuotaEntrySchema>;
 
-export const approveAllocationSchema = z.object({
+const allocationStatuses = ['new', 'active', 'revoked', 'denied', 'expired'] as const;
+
+const baseApproveAllocationSchema = z.object({
 	startDate: z.date().optional(),
 	endDate: z.date().optional(),
-	status: z.string().min(1),
+	status: z.enum(allocationStatuses),
 	description: z.string().optional()
 });
+
+export const approveAllocationSchema = baseApproveAllocationSchema.refine(
+	(data: z.infer<typeof baseApproveAllocationSchema>) => data.status === 'denied' || Boolean(data.endDate),
+	{
+		message: 'End date is required unless the allocation is denied.',
+		path: ['endDate']
+	}
+);
 
 export type ApproveAllocationSchema = z.infer<typeof approveAllocationSchema>;
