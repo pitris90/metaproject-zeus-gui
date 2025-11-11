@@ -14,6 +14,7 @@ import { getCurrentRole } from '@/modules/auth/methods/getCurrentRole';
 import { Role } from '@/modules/user/role';
 import { type ApproveAllocationSchema, approveAllocationSchema } from '@/modules/allocation/form';
 import { useApproveAllocationMutation } from '@/modules/allocation/api/set-allocation-status';
+import OpenstackAllocationInfo from './openstack-allocation-info';
 
 type AllocationInfoProps = {
 	allocation: AllocationDetail;
@@ -285,6 +286,8 @@ const AllocationInfo = ({ allocation, isApprovePage, onSuccess }: AllocationInfo
 					</Box>
 				</Flex>
 			</Stack>
+
+			{allocation.openstack && <OpenstackAllocationInfo data={allocation.openstack} />}
 
 			<Stack mt={20}>
 				<Title order={2}>Users in allocation</Title>

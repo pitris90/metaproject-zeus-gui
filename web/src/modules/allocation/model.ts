@@ -11,6 +11,24 @@ export type Allocation = {
 		name: string;
 		email: string;
 	}[];
+
+	openstack?: {
+		resourceType: string;
+		domain: string;
+		disableDate?: string | null;
+		projectDescription: string;
+		mainTag: string;
+		customerKey: string;
+		organizationKey: string;
+		workplaceKey: string;
+		additionalTags?: string[];
+		quota: Record<string, number>;
+		processed: boolean;
+		processedAt: string | null;
+		mergeRequestUrl: string | null;
+		branchName: string | null;
+		yamlPath: string | null;
+	};
 };
 
 export type AllocationDetail = {
@@ -102,4 +120,10 @@ export type AllocationAdmin = {
 	};
 	status: string;
 	endDate: string | null;
+	openstack?: {
+		domain: string | null;
+		organizationKey: string | null;
+		processed: boolean;
+		mergeRequestUrl: string | null;
+	};
 };
