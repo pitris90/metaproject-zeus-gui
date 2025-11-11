@@ -30,29 +30,6 @@ const ResourceStep = ({ resources, setSelectedResourceId, selectedResourceId, is
 		isError: isDetailError
 	} = useResourceDetailQuery(selectedResourceId);
 
-	if (!resources) {
-		return null;
-	}
-
-	if (isDetailPending && fetchStatus === 'fetching') {
-		return <Loading />;
-	}
-
-	if (isDetailError) {
-		return <ErrorAlert />;
-	}
-
-	const quantityLabel = resourceDetail?.attributes.find(
-		(attribute: ResourceDetailAttribute) => attribute.key === QUANTITY_LABEL
-	)?.value;
-	const quantityDefaultValue = resourceDetail?.attributes.find(
-		(attribute: ResourceDetailAttribute) => attribute.key === QUANTITY_DEFAULT_VALUE
-	)?.value;
-	const attributes =
-		resourceDetail?.attributes?.filter(
-			(attribute: ResourceDetailAttribute) => !attribute.key.startsWith('quantity_')
-		) ?? [];
-
 	const isOpenstackResource =
 		resourceDetail?.resourceType?.name?.toLowerCase() === OPENSTACK_RESOURCE_TYPE_NAME.toLowerCase();
 
@@ -97,6 +74,25 @@ const ResourceStep = ({ resources, setSelectedResourceId, selectedResourceId, is
 			form.setValue('openstack.quota', defaultQuota, { shouldDirty: false, shouldValidate: false });
 		}
 	}, [form, isOpenstackResource]);
+
+	if (isDetailPending && fetchStatus === 'fetching') {
+		return <Loading />;
+	}
+
+	if (isDetailError) {
+		return <ErrorAlert />;
+	}
+
+	const quantityLabel = resourceDetail?.attributes.find(
+		(attribute: ResourceDetailAttribute) => attribute.key === QUANTITY_LABEL
+	)?.value;
+	const quantityDefaultValue = resourceDetail?.attributes.find(
+		(attribute: ResourceDetailAttribute) => attribute.key === QUANTITY_DEFAULT_VALUE
+	)?.value;
+	const attributes =
+		resourceDetail?.attributes?.filter(
+			(attribute: ResourceDetailAttribute) => !attribute.key.startsWith('quantity_')
+		) ?? [];
 
 	return (
 		<Stack>
