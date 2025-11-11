@@ -11,6 +11,12 @@ import {
 	type OpenstackWorkplaceEntry
 } from '@/modules/openstack/organizations';
 import { useOpenstackCatalogQuery } from '@/modules/openstack/api/catalog';
+import {
+	getOpenstackDomainOptions,
+	getOpenstackQuotaOptions,
+	syncOpenstackDomains,
+	syncOpenstackQuotaKeys
+} from '@/modules/openstack/constraints';
 
 type SelectOption = {
 	value: string;
@@ -21,6 +27,15 @@ const OpenstackAllocationFields = () => {
 	const form = useFormContext<AddAllocationSchema>();
 	const { data: catalog } = useOpenstackCatalogQuery();
 	const [customerOptions, setCustomerOptions] = useState<SelectOption[]>([]);
+
+	useEffect(() => {
+		if (!catalog) {
+			return;
+		}
+
+		syncOpenstackDomains(catalog.domains);
+		syncOpenstackQuotaKeys(catalog.quotaKeys);
+	}, [catalog]);
 
 	useEffect(() => {
 		if (!catalog) {
@@ -65,12 +80,36 @@ const OpenstackAllocationFields = () => {
 	const hasCustomerOptions = customerOptions.length > 0;
 	const hasWorkplaceOptions = workplaceOptions.length > 0;
 
+	const domainOptions = useMemo<SelectOption[]>(() => {
+		const domains = catalog?.domains ?? getOpenstackDomainOptions();
+		return domains.map((domain: string) => ({ value: domain, label: domain }));
+	}, [catalog]);
+
+	const quotaOptions = useMemo<SelectOption[]>(() => {
+		const quotaKeys = catalog?.quotaKeys ?? getOpenstackQuotaOptions();
+		return quotaKeys.map((key: string) => ({ value: key, label: key }));
+	}, [catalog]);
+
 	const openstackErrors = form.formState.errors.openstack;
 
 	const { fields, append, remove } = useFieldArray<AddAllocationSchema, 'openstack.quota'>({
 		control: form.control,
 		name: 'openstack.quota'
 	});
+
+	const quotaEntries = form.watch('openstack.quota') ?? [];
+
+	useEffect(() => {
+		if (domainOptions.length === 1) {
+			const currentDomain = form.getValues('openstack.domain');
+			if (!currentDomain) {
+				form.setValue('openstack.domain', domainOptions[0]?.value ?? '', {
+					shouldDirty: false,
+					shouldValidate: true
+				});
+			}
+		}
+	}, [domainOptions, form]);
 
 	useEffect(() => {
 		if (fields.length === 0) {
@@ -108,12 +147,23 @@ const OpenstackAllocationFields = () => {
 					{...form.register('openstack.mainTag')}
 					error={openstackErrors?.mainTag?.message as string}
 				/>
-				<TextInput
-					label="OpenStack domain"
-					withAsterisk
-					placeholder="e.g. einf..."
-					{...form.register('openstack.domain')}
-					error={openstackErrors?.domain?.message as string}
+				<Controller<AddAllocationSchema>
+					control={form.control}
+					name="openstack.domain"
+					render={(props: { field: ControllerRenderProps<AddAllocationSchema, 'openstack.domain'> }) => (
+						<Select
+							label="OpenStack domain"
+							withAsterisk
+							data={domainOptions}
+							searchable
+							allowDeselect={false}
+							placeholder={domainOptions.length > 0 ? 'Select domain' : 'No domains available'}
+							value={props.field.value ?? null}
+							onChange={(value: string | null) => props.field.onChange(value ?? '')}
+							error={openstackErrors?.domain?.message as string}
+							nothingFoundMessage="No matching domain"
+						/>
+					)}
 				/>
 				<Textarea
 					label="Project description"
@@ -237,7 +287,7 @@ const OpenstackAllocationFields = () => {
 					)}
 				</Group>
 				<Text size="sm" c="dimmed">
-					Customer, organization, workplace, and additional tags will be validated when the request is saved.
+					Domain, customer, organization, workplace, and additional tags are validated before submission.
 				</Text>
 				<Controller<AddAllocationSchema>
 					control={form.control}
@@ -255,14 +305,43 @@ const OpenstackAllocationFields = () => {
 				/>
 				<Fieldset legend="Quota definitions">
 					<Stack gap="sm">
+						<Text size="sm" c="dimmed">
+							Only supported OpenStack quota keys can be selected.
+						</Text>
 						{fields.map((item: FieldArrayWithId<AddAllocationSchema, 'openstack.quota'>, index: number) => (
 							<Group key={item.id} align="flex-end">
-								<TextInput
-									label="Quota key"
-									placeholder="e.g. cores"
-									withAsterisk
-									{...form.register(`openstack.quota.${index}.key` as const)}
-									error={openstackErrors?.quota?.[index]?.key?.message as string}
+								<Controller<AddAllocationSchema>
+									control={form.control}
+									name={`openstack.quota.${index}.key` as const}
+									render={(props: { field: ControllerRenderProps<AddAllocationSchema, `openstack.quota.${number}.key`> }) => {
+										const currentKey = quotaEntries?.[index]?.key ?? '';
+										const usedKeys = new Set(
+											(quotaEntries ?? [])
+												.map((entry: OpenstackQuotaEntry | undefined, entryIndex: number) =>
+													entryIndex === index ? undefined : entry?.key
+												)
+												.filter((key: string | undefined): key is string => Boolean(key))
+										);
+
+										const availableOptions = quotaOptions.filter((option: SelectOption) =>
+											option.value === currentKey || !usedKeys.has(option.value)
+										);
+
+										return (
+											<Select
+												label="Quota key"
+												withAsterisk
+												data={availableOptions}
+												searchable
+												allowDeselect={false}
+												placeholder="Select quota key"
+												value={props.field.value ?? null}
+												onChange={(value: string | null) => props.field.onChange(value ?? '')}
+												nothingFoundMessage="No matching quota key"
+												error={openstackErrors?.quota?.[index]?.key?.message as string}
+											/>
+										);
+									}}
 								/>
 								<Controller<AddAllocationSchema>
 									control={form.control}
@@ -301,6 +380,7 @@ const OpenstackAllocationFields = () => {
 							variant="light"
 							size="xs"
 							onClick={() => append({ key: '', value: 0 } as OpenstackQuotaEntry)}
+							disabled={quotaOptions.length > 0 && fields.length >= quotaOptions.length}
 						>
 							Add quota item
 						</Button>

@@ -8,6 +8,8 @@ export type OpenstackCatalogResponse = {
 	customers: OpenstackCatalogEntry[];
 	organizations: OpenstackCatalogEntry[];
 	workplaces: OpenstackWorkplaceEntry[];
+	domains: string[];
+	quotaKeys: string[];
 };
 
 const fetchOpenstackCatalog = async (): Promise<OpenstackCatalogResponse> =>

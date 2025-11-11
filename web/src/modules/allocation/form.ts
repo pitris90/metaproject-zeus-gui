@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isSupportedOpenstackDomain, isSupportedOpenstackQuotaKey } from '@/modules/openstack/constraints';
 
 export const addResourceSchema = z.object({
 	name: z.string().min(3).max(100),
@@ -19,12 +20,36 @@ export type AddResourceSchema = z.infer<typeof addResourceSchema>;
 export type EditResourceSchema = { id: number } & AddResourceSchema;
 
 const openstackQuotaEntrySchema = z.object({
-	key: z.string().min(1),
-	value: z.number().min(0)
+	key: z
+		.string()
+		.min(1)
+		.superRefine((value: string, ctx: z.RefinementCtx) => {
+			if (!isSupportedOpenstackQuotaKey(value)) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: `Unsupported OpenStack quota key "${value}".`
+				});
+			}
+		}),
+	value: z
+		.number()
+		.min(0, { message: 'Quota value must be zero or positive.' })
+		.finite()
 });
 
 export const openstackAllocationSchema = z.object({
-	domain: z.string().min(1),
+	domain: z
+		.string()
+		.min(1)
+		.regex(/^[a-z0-9][a-z0-9_.-]*$/)
+		.superRefine((value: string, ctx: z.RefinementCtx) => {
+			if (!isSupportedOpenstackDomain(value)) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: `Unsupported OpenStack domain "${value}".`
+				});
+			}
+		}),
 	projectDescription: z.string().min(5),
 	disableDate: z.date().nullable().optional(),
 	mainTag: z
@@ -34,9 +59,24 @@ export const openstackAllocationSchema = z.object({
 	customerKey: z.string().min(1),
 	organizationKey: z.string().min(1),
 	workplaceKey: z.string().min(1),
-	additionalTags: z.array(z.string().min(1)).optional(),
-	quota: z.array(openstackQuotaEntrySchema).min(1)
-});
+	additionalTags: z
+		.array(z.string().min(1).regex(/^[a-z0-9][a-z0-9_.:-]*$/i, 'Invalid OpenStack tag format.'))
+		.optional(),
+	quota: z
+		.array(openstackQuotaEntrySchema)
+		.min(1, { message: 'Provide at least one quota definition.' })
+})
+	.superRefine((data: { quota: Array<{ key: string }> }, ctx: z.RefinementCtx) => {
+		const keys = data.quota.map((entry: { key: string }) => entry.key);
+		const duplicates = keys.filter((key: string, index: number) => keys.indexOf(key) !== index);
+		if (duplicates.length > 0) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: `Duplicate OpenStack quota keys: ${Array.from(new Set(duplicates)).join(', ')}.`,
+				path: ['quota']
+			});
+		}
+	});
 
 export const addAllocationSchema = z.object({
 	justification: z.string().min(3),
