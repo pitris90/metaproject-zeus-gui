@@ -50,7 +50,6 @@ const ResourceStep = ({ resources, setSelectedResourceId, selectedResourceId, is
 					domain: '',
 					projectDescription: '',
 					disableDate: null,
-					mainTag: 'meta',
 					customerKey: '',
 					organizationKey: '',
 					workplaceKey: '',
@@ -60,10 +59,6 @@ const ResourceStep = ({ resources, setSelectedResourceId, selectedResourceId, is
 				{ shouldDirty: false, shouldValidate: false }
 			);
 			return;
-		}
-
-		if (!current.mainTag) {
-			form.setValue('openstack.mainTag', 'meta', { shouldDirty: false, shouldValidate: false });
 		}
 
 		if (current.customerKey === 'meta') {

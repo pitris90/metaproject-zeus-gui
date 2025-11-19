@@ -52,10 +52,6 @@ export const openstackAllocationSchema = z.object({
 		}),
 	projectDescription: z.string().min(5),
 	disableDate: z.date().nullable().optional(),
-	mainTag: z
-		.string()
-		.min(1)
-		.regex(/^[a-z0-9][a-z0-9_.-]*$/),
 	customerKey: z.string().min(1),
 	organizationKey: z.string().min(1),
 	workplaceKey: z.string().min(1),

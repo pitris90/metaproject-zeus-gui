@@ -50,10 +50,6 @@ const OpenstackAllocationInfo = ({ data }: OpenstackAllocationInfoProps) => {
 				</Stack>
 				<Group gap="xl" align="flex-start" wrap="wrap">
 					<Stack gap={4}>
-						<Text size="sm" c="dimmed">Main tag</Text>
-						<Text fw={500}>{data.mainTag}</Text>
-					</Stack>
-					<Stack gap={4}>
 						<Text size="sm" c="dimmed">Customer</Text>
 						<Text fw={500}>{data.customerKey}</Text>
 					</Stack>

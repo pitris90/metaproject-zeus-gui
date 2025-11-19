@@ -82,8 +82,6 @@ const AllocationRequest = () => {
 				}
 				return acc;
 			}, {});
-
-			const mainTag = data.openstack.mainTag.trim();
 			const customerKey = data.openstack.customerKey.trim();
 			const organizationKey = data.openstack.organizationKey.trim();
 			const workplaceKey = data.openstack.workplaceKey.trim();
@@ -94,7 +92,6 @@ const AllocationRequest = () => {
 				disableDate: data.openstack.disableDate
 					? dayjs(data.openstack.disableDate).format('YYYY-MM-DD')
 					: undefined,
-				mainTag,
 				customerKey,
 				organizationKey,
 				workplaceKey,

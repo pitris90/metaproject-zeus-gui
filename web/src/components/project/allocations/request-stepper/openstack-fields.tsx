@@ -139,14 +139,6 @@ const OpenstackAllocationFields = () => {
 				<Text size="sm" c="dimmed">
 					These values are used to generate the GitOps OpenStack YAML once the allocation is approved.
 				</Text>
-				<TextInput
-					label="Main tag"
-					description="Primary OpenStack tag that prefixes every allocation"
-					withAsterisk
-					placeholder="e.g. meta"
-					{...form.register('openstack.mainTag')}
-					error={openstackErrors?.mainTag?.message as string}
-				/>
 				<Controller<AddAllocationSchema>
 					control={form.control}
 					name="openstack.domain"
