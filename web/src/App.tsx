@@ -35,6 +35,7 @@ import AllocationRequestsList from '@/routes/admin/allocation-requests/list';
 import ProjectInvitation from '@/routes/project/invitation';
 import AdminLinkPage from '@/routes/admin';
 import MyPublicationsPage from '@/routes/publications';
+import UsageDashboard from '@/routes/usage';
 
 import Index from './routes/index/index';
 import Root from './routes/root';
@@ -86,6 +87,9 @@ const App = () => {
 				</Route>
 				<Route path="/publications" element={<PrivateRouteGuard />}>
 					<Route index element={<MyPublicationsPage />} />
+				</Route>
+				<Route path="/usage" element={<PrivateRouteGuard />}>
+					<Route index element={<UsageDashboard />} />
 				</Route>
 				<Route path="/admin" element={<AdminRouteGuard />}>
 					<Route index element={<AdminLinkPage />} />
