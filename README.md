@@ -25,11 +25,11 @@ Either run with docker
 
 ## Environment Variables
 
-If you want to test this project, you need to copy variables from `.env.example` to `.env` and fill some variables with your values. 
+If you want to test this project, you need to copy variables from `.env.example` to `.env` and fill some variables with your values.
 
 
 
-Most values are self-explanatory, are fine for local testing and don't have to be changed, but some values are confidential should be registered correctly. 
+Most values are self-explanatory, are fine for local testing and don't have to be changed, but some values are confidential should be registered correctly.
 
 This is list of variables that should be changed for local development:
 
