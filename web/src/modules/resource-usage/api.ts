@@ -5,6 +5,7 @@ import { ResourceUsageScopeType, ResourceUsageSummaryResponse } from './types';
 export interface ResourceUsageSummaryParams {
 	scopeId?: string;
 	scopeType?: ResourceUsageScopeType;
+	source?: string;
 }
 
 export const fetchResourceUsageSummary = async (
@@ -16,6 +17,9 @@ export const fetchResourceUsageSummary = async (
 	}
 	if (params?.scopeType) {
 		query.set('scopeType', params.scopeType);
+	}
+	if (params?.source) {
+		query.set('source', params.source);
 	}
 
 	const queryString = query.toString();

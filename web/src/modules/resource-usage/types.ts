@@ -4,6 +4,7 @@ export interface ResourceUsageScopeOption {
 	id: string;
 	type: ResourceUsageScopeType;
 	label: string;
+	source?: string;
 }
 
 export interface ResourceUsageSeriesPoint {
@@ -24,6 +25,7 @@ export interface ResourceUsageTotals {
 export interface ResourceUsageSummaryResponse {
 	scope: ResourceUsageScopeOption;
 	availableScopes: ResourceUsageScopeOption[];
+	availableSources: string[];
 	totals: ResourceUsageTotals;
 	series: ResourceUsageSeriesPoint[];
 }

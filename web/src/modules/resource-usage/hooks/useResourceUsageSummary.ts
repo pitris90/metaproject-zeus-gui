@@ -4,6 +4,6 @@ import { ResourceUsageSummaryResponse } from '../types';
 
 export const useResourceUsageSummary = (params?: ResourceUsageSummaryParams) =>
 	useQuery<ResourceUsageSummaryResponse>({
-		queryKey: ['resource-usage-summary', params?.scopeId, params?.scopeType],
+		queryKey: ['resource-usage-summary', params?.scopeId, params?.scopeType, params?.source],
 		queryFn: () => fetchResourceUsageSummary(params)
 	});
