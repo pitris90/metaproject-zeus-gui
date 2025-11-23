@@ -6,7 +6,10 @@ import {
 	Button,
 	Divider,
 	Group,
+	Loader,
 	rem,
+	Select,
+	SimpleGrid,
 	Stack,
 	Tabs,
 	Text,
@@ -16,6 +19,7 @@ import {
 import { IconArchive, IconBan, IconInfoCircle, IconRepeat } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
 
 import ProjectMembers from '@/components/project/members';
 import PageBreadcrumbs from '@/components/global/page-breadcrumbs';
@@ -26,10 +30,19 @@ import ProjectInfo from '@/components/project/info';
 import ProjectPublications from '@/components/project/publications';
 import CommentsTimeline from '@/components/project/comments-timeline';
 import ProjectAllocationsTable from '@/components/project/allocations';
+import UsageChartCard from '@/components/resource-usage/usage-chart-card';
+import { useResourceUsageSummary } from '@/modules/resource-usage/hooks/useResourceUsageSummary';
 
 const ProjectDetail = () => {
 	const { project, permissions, archivalInfo, rejectedComments } = useProjectOutletContext();
 	const { t } = useTranslation();
+	const [selectedSource, setSelectedSource] = useState<string | null>(null);
+
+	const { data: usageData, isLoading: isLoadingUsage } = useResourceUsageSummary({
+		scopeType: 'project',
+		scopeId: project.id.toString(),
+		source: selectedSource || undefined
+	});
 
 	const iconStyle = { width: rem(16), height: rem(16) };
 
@@ -121,6 +134,9 @@ const ProjectDetail = () => {
 					<Tabs.Tab value="projectInfo" leftSection={<IconInfoCircle style={iconStyle} />}>
 						Project info
 					</Tabs.Tab>
+					<Tabs.Tab value="resourceUsage" leftSection={<IconInfoCircle style={iconStyle} />}>
+						Resource usage
+					</Tabs.Tab>
 				</Tabs.List>
 
 				{showArchivalInfoTab && (
@@ -157,6 +173,95 @@ const ProjectDetail = () => {
 							<ProjectMembers id={project.id} />
 							<ProjectPublications id={project.id} />
 						</>
+					)}
+				</Tabs.Panel>
+
+				<Tabs.Panel value="resourceUsage">
+					{isLoadingUsage && (
+						<Group justify="center" py="xl">
+							<Loader size="lg" />
+						</Group>
+					)}
+
+					{!isLoadingUsage && usageData && (
+						<Stack gap="md">
+							{usageData.availableSources.length > 1 && (
+								<Group>
+									<Select
+										label="Data source"
+										placeholder="All sources"
+										data={[
+											{ value: '', label: 'All sources' },
+											...usageData.availableSources.map((source) => ({
+												value: source,
+												label: source
+											}))
+										]}
+										value={selectedSource}
+										onChange={(value) => setSelectedSource(value || null)}
+										clearable
+										style={{ minWidth: 200 }}
+									/>
+								</Group>
+							)}
+
+							<SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+								<UsageChartCard
+									title="CPU time"
+									description="Total CPU seconds consumed per window"
+									series={usageData.series}
+									metrics={[
+										{
+											key: 'cpuTimeSeconds',
+											label: 'CPU time'
+										}
+									]}
+								/>
+								<UsageChartCard
+									title="CPU usage"
+									description="Average CPU utilization percentage"
+									series={usageData.series}
+									metrics={[
+										{
+											key: 'cpuPercent',
+											label: 'CPU %'
+										}
+									]}
+								/>
+								<UsageChartCard
+									title="Walltime"
+									description="Elapsed time per window"
+									series={usageData.series}
+									metrics={[
+										{
+											key: 'walltimeSeconds',
+											label: 'Walltime'
+										}
+									]}
+								/>
+								<UsageChartCard
+									title="Memory"
+									description="Allocated vs used RAM"
+									series={usageData.series}
+									metrics={[
+										{
+											key: 'ramBytesAllocated',
+											label: 'Allocated'
+										},
+										{
+											key: 'ramBytesUsed',
+											label: 'Used'
+										}
+									]}
+								/>
+							</SimpleGrid>
+						</Stack>
+					)}
+
+					{!isLoadingUsage && !usageData && (
+						<Box py="xl">
+							<Text>No usage data available for this project yet.</Text>
+						</Box>
 					)}
 				</Tabs.Panel>
 			</Tabs>
