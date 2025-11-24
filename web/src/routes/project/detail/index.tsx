@@ -19,7 +19,7 @@ import {
 import { IconArchive, IconBan, IconInfoCircle, IconRepeat } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import ProjectMembers from '@/components/project/members';
 import PageBreadcrumbs from '@/components/global/page-breadcrumbs';
@@ -31,18 +31,30 @@ import ProjectPublications from '@/components/project/publications';
 import CommentsTimeline from '@/components/project/comments-timeline';
 import ProjectAllocationsTable from '@/components/project/allocations';
 import UsageChartCard from '@/components/resource-usage/usage-chart-card';
+import StaticMetricsCard from '@/components/resource-usage/static-metrics-card';
 import { useResourceUsageSummary } from '@/modules/resource-usage/hooks/useResourceUsageSummary';
+import type { ResourceUsageAllocationOption } from '@/modules/resource-usage/types';
 
 const ProjectDetail = () => {
 	const { project, permissions, archivalInfo, rejectedComments } = useProjectOutletContext();
 	const { t } = useTranslation();
 	const [selectedSource, setSelectedSource] = useState<string | null>(null);
+	const [selectedAllocation, setSelectedAllocation] = useState<string | null>('all');
+	const [initialSources, setInitialSources] = useState<string[]>([]);
 
 	const { data: usageData, isLoading: isLoadingUsage } = useResourceUsageSummary({
 		scopeType: 'project',
 		scopeId: project.id.toString(),
-		source: selectedSource || undefined
+		source: selectedSource || undefined,
+		allocationId: selectedAllocation !== 'all' ? selectedAllocation || undefined : undefined
 	});
+
+	// Store initial sources to keep dropdown visible
+	useEffect(() => {
+		if (usageData?.availableSources && initialSources.length === 0) {
+			setInitialSources(usageData.availableSources);
+		}
+	}, [usageData?.availableSources, initialSources.length]);
 
 	const iconStyle = { width: rem(16), height: rem(16) };
 
@@ -183,33 +195,59 @@ const ProjectDetail = () => {
 						</Group>
 					)}
 
-					{!isLoadingUsage && usageData && (
-						<Stack gap="md">
-							{usageData.availableSources.length > 1 && (
-								<Group>
-									<Select
-										label="Data source"
-										placeholder="All sources"
-										data={[
-											{ value: '', label: 'All sources' },
-											...usageData.availableSources.map((source) => ({
-												value: source,
-												label: source
-											}))
-										]}
-										value={selectedSource}
-										onChange={(value) => setSelectedSource(value || null)}
-										clearable
-										style={{ minWidth: 200 }}
-									/>
-								</Group>
+				{!isLoadingUsage && usageData && (
+					<Stack gap="md">
+						<Group>
+							{initialSources.length > 1 && (
+								<Select
+									label="Data source"
+									placeholder="All sources"
+									data={[
+										{ value: '', label: 'All sources' },
+										...initialSources.map((source: string) => ({
+											value: source,
+											label: source.toUpperCase()
+										}))
+									]}
+									value={selectedSource}
+									onChange={(value: string | null) => setSelectedSource(value || null)}
+									clearable
+									style={{ minWidth: 200 }}
+								/>
 							)}
 
-							<SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+							{usageData.availableAllocations && usageData.availableAllocations.length > 0 && (
+								<Select
+									label="Allocation / Job"
+									placeholder="All allocations"
+									data={[
+										{ value: 'all', label: 'All' },
+										...usageData.availableAllocations.map((alloc: ResourceUsageAllocationOption) => ({
+											value: alloc.id,
+											label: alloc.label
+										}))
+									]}
+									value={selectedAllocation}
+									onChange={(value: string | null) => setSelectedAllocation(value || 'all')}
+									clearable
+									style={{ minWidth: 250 }}
+								/>
+							)}
+						</Group>
+						
+						{/* Static Metrics */}
+						<StaticMetricsCard
+							totalVcpus={usageData.totals.totalVcpus}
+							storageBytesAllocated={usageData.totals.storageBytesAllocated}
+							lastUpdated={usageData.totals.lastUpdated}
+						/>
+
+						<SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
 								<UsageChartCard
 									title="CPU time"
 									description="Total CPU seconds consumed per window"
 									series={usageData.series}
+									unitType="time"
 									metrics={[
 										{
 											key: 'cpuTimeSeconds',
@@ -221,6 +259,7 @@ const ProjectDetail = () => {
 									title="CPU usage"
 									description="Average CPU utilization percentage"
 									series={usageData.series}
+									unitType="percentage"
 									metrics={[
 										{
 											key: 'cpuPercent',
@@ -232,6 +271,7 @@ const ProjectDetail = () => {
 									title="Walltime"
 									description="Elapsed time per window"
 									series={usageData.series}
+									unitType="time"
 									metrics={[
 										{
 											key: 'walltimeSeconds',
@@ -243,6 +283,7 @@ const ProjectDetail = () => {
 									title="Memory"
 									description="Allocated vs used RAM"
 									series={usageData.series}
+									unitType="memory"
 									metrics={[
 										{
 											key: 'ramBytesAllocated',

@@ -22,10 +22,17 @@ export interface ResourceUsageTotals {
 	lastUpdated: string;
 }
 
+export interface ResourceUsageAllocationOption {
+	id: string;
+	label: string;
+	source: string;
+}
+
 export interface ResourceUsageSummaryResponse {
 	scope: ResourceUsageScopeOption;
 	availableScopes: ResourceUsageScopeOption[];
 	availableSources: string[];
+	availableAllocations: ResourceUsageAllocationOption[];
 	totals: ResourceUsageTotals;
 	series: ResourceUsageSeriesPoint[];
 }

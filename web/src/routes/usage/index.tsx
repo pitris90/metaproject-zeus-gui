@@ -133,11 +133,11 @@ const UsageDashboard = () => {
 								title="CPU time"
 								description="Total CPU seconds consumed per window"
 								series={series}
+								unitType="time"
 								metrics={[
 									{
 										key: 'cpuTimeSeconds',
-										label: 'CPU time',
-										formatter: formatDuration
+										label: 'CPU time'
 									}
 								]}
 							/>
@@ -145,11 +145,11 @@ const UsageDashboard = () => {
 								title="CPU usage"
 								description="Average CPU utilisation %"
 								series={series}
+								unitType="percentage"
 								metrics={[
 									{
 										key: 'cpuPercent',
-										label: 'CPU %',
-										formatter: value => `${value.toFixed(1)}%`
+										label: 'CPU %'
 									}
 								]}
 							/>
@@ -157,11 +157,11 @@ const UsageDashboard = () => {
 								title="Walltime"
 								description="Elapsed time per window"
 								series={series}
+								unitType="time"
 								metrics={[
 									{
 										key: 'walltimeSeconds',
-										label: 'Walltime',
-										formatter: formatDuration
+										label: 'Walltime'
 									}
 								]}
 							/>
@@ -169,16 +169,15 @@ const UsageDashboard = () => {
 								title="Memory"
 								description="Allocated vs used RAM"
 								series={series}
+								unitType="memory"
 								metrics={[
 									{
 										key: 'ramBytesAllocated',
-										label: 'Allocated',
-										formatter: formatBytes
+										label: 'Allocated'
 									},
 									{
 										key: 'ramBytesUsed',
-										label: 'Used',
-										formatter: formatBytes
+										label: 'Used'
 									}
 								]}
 							/>
