@@ -6,6 +6,7 @@ export interface ResourceUsageSummaryParams {
 	scopeId?: string;
 	scopeType?: ResourceUsageScopeType;
 	source?: string;
+	allocationId?: string;
 }
 
 export const fetchResourceUsageSummary = async (
@@ -20,6 +21,9 @@ export const fetchResourceUsageSummary = async (
 	}
 	if (params?.source) {
 		query.set('source', params.source);
+	}
+	if (params?.allocationId) {
+		query.set('allocationId', params.allocationId);
 	}
 
 	const queryString = query.toString();
