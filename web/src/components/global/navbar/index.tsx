@@ -2,12 +2,13 @@ import { useTranslation } from 'react-i18next';
 import { type PropsWithChildren, useEffect, useState } from 'react';
 import { Anchor, Box, Burger, Flex, getBreakpointValue, Group, Image, Tooltip, useMantineTheme } from '@mantine/core';
 import { Link } from 'react-router-dom';
-import { useAuth } from 'react-oidc-context';
+// import { useAuth } from 'react-oidc-context';
 
 import useWindowSize from '@/hooks/useWindowSize';
 import { getStepUpAccess } from '@/modules/auth/methods/getStepUpAccess';
 import StepUpToggle from '@/components/global/step-up-toggle';
 import DrawerList from '@/components/global/navbar/drawer-list';
+import MockUserPanel from '@/components/global/mock-user';
 
 import classes from './navbar.module.css';
 import UserMenu from './user-menu';
@@ -22,7 +23,9 @@ const shouldOpenByDefault = (windowSize: number) =>
 const Navbar = ({ children }: PropsWithChildren) => {
 	const theme = useMantineTheme();
 	const { t } = useTranslation();
-	const { isAuthenticated } = useAuth();
+	// TEMPORARILY DISABLED OIDC for exploration
+	// const { isAuthenticated } = useAuth();
+	const isAuthenticated = true; // Mock authentication for exploration
 	const windowSize = useWindowSize();
 	const stepUpAccess = getStepUpAccess();
 	const [drawerOpened, setDrawerOpened] = useState<boolean>(shouldOpenByDefault(windowSize));
@@ -65,6 +68,7 @@ const Navbar = ({ children }: PropsWithChildren) => {
 				{isAuthenticated && (
 					<Group mr={10} gap={1}>
 						<StepUpToggle stepUpAccess={stepUpAccess} />
+						<MockUserPanel />
 						<UserMenu isOpened={drawerOpened} />
 					</Group>
 				)}

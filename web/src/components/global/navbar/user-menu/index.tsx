@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Avatar, Group, Menu, MenuDropdown, MenuItem, MenuTarget, rem, Text, UnstyledButton } from '@mantine/core';
 import { IconChevronDown, IconLogout } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from 'react-oidc-context';
+// import { useAuth } from 'react-oidc-context';
 
 import classes from './user-menu.module.css';
 
@@ -13,12 +13,25 @@ type UserMenuProps = {
 
 const UserMenu = ({ fullWidth = false, isOpened }: UserMenuProps) => {
 	const navigate = useNavigate();
-	const { user, removeUser, revokeTokens } = useAuth();
+	// TEMPORARILY DISABLED OIDC for exploration
+	// const { user, removeUser, revokeTokens } = useAuth();
+	
+	// Mock user data for exploration
+	const user = {
+		profile: {
+			name: 'Exploration User',
+			email: 'user@example.com',
+			given_name: 'Exploration',
+			family_name: 'User'
+		}
+	};
+	
 	const [userMenuOpened, setUserMenuOpened] = useState(isOpened);
 
 	const logout = async () => {
-		await removeUser();
-		await revokeTokens();
+		// Mock logout for exploration
+		localStorage.removeItem('max_role');
+		localStorage.removeItem('is_user_step_up');
 		navigate('/');
 	};
 
