@@ -84,6 +84,45 @@ const OpenstackAllocationInfo = ({ data }: OpenstackAllocationInfoProps) => {
 						<Text c="dimmed">No additional tags</Text>
 					)}
 				</Stack>
+				{data.flavors && data.flavors.length > 0 && (
+					<Stack gap={6}>
+						<Text size="sm" c="dimmed">Requested flavors</Text>
+						<Group gap="xs">
+							{data.flavors.map((flavor: string) => (
+								<Badge key={flavor} radius="sm" color="grape" variant="light">
+									{flavor}
+								</Badge>
+							))}
+						</Group>
+					</Stack>
+				)}
+				{data.networks && (data.networks.accessAsExternal?.length || data.networks.accessAsShared?.length) ? (
+					<Stack gap={6}>
+						<Text size="sm" c="dimmed">Requested networks</Text>
+						<Stack gap="xs">
+							{data.networks.accessAsExternal?.length > 0 && (
+								<Group gap="xs">
+									<Text size="xs" c="dimmed">External:</Text>
+									{data.networks.accessAsExternal.map((network: string) => (
+										<Badge key={`ext-${network}`} radius="sm" color="cyan" variant="light">
+											{network}
+										</Badge>
+									))}
+								</Group>
+							)}
+							{data.networks.accessAsShared?.length > 0 && (
+								<Group gap="xs">
+									<Text size="xs" c="dimmed">Shared:</Text>
+									{data.networks.accessAsShared.map((network: string) => (
+										<Badge key={`shared-${network}`} radius="sm" color="teal" variant="light">
+											{network}
+										</Badge>
+									))}
+								</Group>
+							)}
+						</Stack>
+					</Stack>
+				) : null}
 				<Stack gap={6}>
 					<Group gap="sm" align="center">
 						<Title order={5} m={0}>

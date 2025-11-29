@@ -1,21 +1,26 @@
-import { Button, Fieldset, Group, NumberInput, Select, Stack, TagsInput, Text, TextInput, Textarea } from '@mantine/core';
+import { Button, Fieldset, Group, MultiSelect, NumberInput, Select, SegmentedControl, Stack, TagsInput, Text, Textarea, Tooltip } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { Controller, type ControllerRenderProps, type FieldArrayWithId, useFieldArray, useFormContext } from 'react-hook-form';
 import { useEffect, useMemo, useState } from 'react';
 
-import { type AddAllocationSchema, type OpenstackQuotaEntry } from '@/modules/allocation/form';
+import { type AddAllocationSchema, type OpenstackQuotaEntry, type OpenstackNetworkEntry } from '@/modules/allocation/form';
 import {
 	getOpenstackWorkplacesByOrganization,
 	mergeCustomerOptions,
 	type OpenstackCatalogEntry,
 	type OpenstackWorkplaceEntry
 } from '@/modules/openstack/organizations';
-import { useOpenstackCatalogQuery } from '@/modules/openstack/api/catalog';
+import { useOpenstackCatalogQuery, type OpenstackFlavorEntry } from '@/modules/openstack/api/catalog';
 import {
 	getOpenstackDomainOptions,
 	getOpenstackQuotaOptions,
+	getOpenstackFlavorOptions,
+	getOpenstackNetworkOptions,
+	getFlavorDetails,
 	syncOpenstackDomains,
-	syncOpenstackQuotaKeys
+	syncOpenstackQuotaKeys,
+	syncOpenstackFlavors,
+	syncOpenstackNetworks
 } from '@/modules/openstack/constraints';
 
 type SelectOption = {
@@ -35,6 +40,8 @@ const OpenstackAllocationFields = () => {
 
 		syncOpenstackDomains(catalog.domains);
 		syncOpenstackQuotaKeys(catalog.quotaKeys);
+		syncOpenstackFlavors(catalog.flavors);
+		syncOpenstackNetworks(catalog.networks);
 	}, [catalog]);
 
 	useEffect(() => {
@@ -90,6 +97,23 @@ const OpenstackAllocationFields = () => {
 		return quotaKeys.map((key: string) => ({ value: key, label: key }));
 	}, [catalog]);
 
+	// Flavor options with tooltip data for hover display
+	const flavorOptions = useMemo(() => {
+		const flavors = catalog?.flavors ?? getOpenstackFlavorOptions();
+		return flavors.map((flavor: OpenstackFlavorEntry) => ({
+			value: flavor.name,
+			label: flavor.name,
+			ram: flavor.ram,
+			vcpus: flavor.vcpus
+		}));
+	}, [catalog]);
+
+	// Network options
+	const networkOptions = useMemo<SelectOption[]>(() => {
+		const networks = catalog?.networks?.map((n) => n.name) ?? getOpenstackNetworkOptions();
+		return networks.map((name: string) => ({ value: name, label: name }));
+	}, [catalog]);
+
 	const openstackErrors = form.formState.errors.openstack;
 
 	const { fields, append, remove } = useFieldArray<AddAllocationSchema, 'openstack.quota'>({
@@ -97,7 +121,18 @@ const OpenstackAllocationFields = () => {
 		name: 'openstack.quota'
 	});
 
+	// Network entries field array
+	const {
+		fields: networkFields,
+		append: appendNetwork,
+		remove: removeNetwork
+	} = useFieldArray<AddAllocationSchema, 'openstack.networks'>({
+		control: form.control,
+		name: 'openstack.networks'
+	});
+
 	const quotaEntries = form.watch('openstack.quota') ?? [];
+	const networkEntries = form.watch('openstack.networks') ?? [];
 
 	useEffect(() => {
 		if (domainOptions.length === 1) {
@@ -376,6 +411,137 @@ const OpenstackAllocationFields = () => {
 						>
 							Add quota item
 						</Button>
+					</Stack>
+				</Fieldset>
+				<Fieldset legend="Flavors (optional)">
+					<Stack gap="sm">
+						<Text size="sm" c="dimmed">
+							Select non-public flavors to assign to this project. Hover over a flavor to see its specifications.
+						</Text>
+						<Controller<AddAllocationSchema>
+							control={form.control}
+							name="openstack.flavors"
+							render={(props: { field: ControllerRenderProps<AddAllocationSchema, 'openstack.flavors'> }) => (
+								<MultiSelect
+									label="Assigned flavors"
+									data={flavorOptions.map((f) => ({
+										value: f.value,
+										label: f.label
+									}))}
+									searchable
+									clearable
+									placeholder="Select flavors to assign"
+									value={props.field.value ?? []}
+									onChange={props.field.onChange}
+									nothingFoundMessage="No matching flavor"
+									error={openstackErrors?.flavors?.message as string}
+									renderOption={({ option }) => {
+										const flavor = flavorOptions.find((f) => f.value === option.value);
+										if (!flavor) {
+											return <span>{option.label}</span>;
+										}
+										return (
+											<Tooltip
+												label={`RAM: ${flavor.ram} MB | vCPUs: ${flavor.vcpus}`}
+												position="right"
+												withArrow
+											>
+												<span style={{ width: '100%', display: 'block' }}>{option.label}</span>
+											</Tooltip>
+										);
+									}}
+								/>
+							)}
+						/>
+					</Stack>
+				</Fieldset>
+				<Fieldset legend="Networks (optional)">
+					<Stack gap="sm">
+						<Text size="sm" c="dimmed">
+							Add non-shared networks to assign to this project. Each network can be configured for External or Shared access.
+							To assign the same network to both access types, add it twice.
+						</Text>
+						{networkFields.map((item: FieldArrayWithId<AddAllocationSchema, 'openstack.networks'>, index: number) => {
+							const currentNetwork = networkEntries?.[index]?.name ?? '';
+							const currentAccessType = networkEntries?.[index]?.accessType ?? 'external';
+
+							// Get networks already used in the same access type (excluding current entry)
+							const usedInSameAccessType = new Set(
+								(networkEntries ?? [])
+									.map((entry: OpenstackNetworkEntry | undefined, entryIndex: number) =>
+										entryIndex === index || entry?.accessType !== currentAccessType
+											? undefined
+											: entry?.name
+									)
+									.filter((name: string | undefined): name is string => Boolean(name))
+							);
+
+							// Filter out networks already used in the same access type
+							const availableNetworkOptions = networkOptions.filter((option: SelectOption) =>
+								option.value === currentNetwork || !usedInSameAccessType.has(option.value)
+							);
+
+							return (
+								<Group key={item.id} align="flex-end">
+									<Controller<AddAllocationSchema>
+										control={form.control}
+										name={`openstack.networks.${index}.name` as const}
+										render={(props: { field: ControllerRenderProps<AddAllocationSchema, `openstack.networks.${number}.name`> }) => (
+											<Select
+												label="Network"
+												withAsterisk
+												data={availableNetworkOptions}
+												searchable
+												allowDeselect={false}
+												placeholder="Select network"
+												value={props.field.value ?? null}
+												onChange={(value: string | null) => props.field.onChange(value ?? '')}
+												nothingFoundMessage="No matching network"
+												error={openstackErrors?.networks?.[index]?.name?.message as string}
+												style={{ flex: 1 }}
+											/>
+										)}
+									/>
+									<Controller<AddAllocationSchema>
+										control={form.control}
+										name={`openstack.networks.${index}.accessType` as const}
+										render={(props: { field: ControllerRenderProps<AddAllocationSchema, `openstack.networks.${number}.accessType`> }) => (
+											<Stack gap={4}>
+												<Text size="sm" fw={500}>Access type</Text>
+												<SegmentedControl
+													value={props.field.value ?? 'external'}
+													onChange={props.field.onChange}
+													data={[
+														{ value: 'external', label: 'External' },
+														{ value: 'shared', label: 'Shared' }
+													]}
+												/>
+											</Stack>
+										)}
+									/>
+									<Button
+										type="button"
+										variant="subtle"
+										size="xs"
+										onClick={() => removeNetwork(index)}
+									>
+										Remove
+									</Button>
+								</Group>
+							);
+						})}
+						<Button
+							type="button"
+							variant="light"
+							size="xs"
+							onClick={() => appendNetwork({ name: '', accessType: 'external' } as OpenstackNetworkEntry)}
+							disabled={networkOptions.length === 0}
+						>
+							Add network
+						</Button>
+						{openstackErrors?.networks?.message && (
+							<Text size="sm" c="red">{openstackErrors.networks.message as string}</Text>
+						)}
 					</Stack>
 				</Fieldset>
 			</Stack>
