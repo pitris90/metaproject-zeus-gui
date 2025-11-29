@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { isSupportedOpenstackDomain, isSupportedOpenstackQuotaKey } from '@/modules/openstack/constraints';
+import {
+	isSupportedOpenstackDomain,
+	isSupportedOpenstackQuotaKey,
+	isSupportedOpenstackFlavor,
+	isSupportedOpenstackNetwork
+} from '@/modules/openstack/constraints';
 
 export const addResourceSchema = z.object({
 	name: z.string().min(3).max(100),
@@ -37,6 +42,24 @@ const openstackQuotaEntrySchema = z.object({
 		.finite()
 });
 
+/**
+ * Network entry with access type (external or shared).
+ */
+const openstackNetworkEntrySchema = z.object({
+	name: z
+		.string()
+		.min(1)
+		.superRefine((value: string, ctx: z.RefinementCtx) => {
+			if (!isSupportedOpenstackNetwork(value)) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: `Unsupported OpenStack network "${value}".`
+				});
+			}
+		}),
+	accessType: z.enum(['external', 'shared'])
+});
+
 export const openstackAllocationSchema = z.object({
 	domain: z
 		.string()
@@ -60,17 +83,79 @@ export const openstackAllocationSchema = z.object({
 		.optional(),
 	quota: z
 		.array(openstackQuotaEntrySchema)
-		.min(1, { message: 'Provide at least one quota definition.' })
+		.min(1, { message: 'Provide at least one quota definition.' }),
+	/** Optional list of flavor names to assign to the project */
+	flavors: z
+		.array(
+			z.string().min(1).superRefine((value: string, ctx: z.RefinementCtx) => {
+				if (!isSupportedOpenstackFlavor(value)) {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						message: `Unsupported OpenStack flavor "${value}".`
+					});
+				}
+			})
+		)
+		.optional(),
+	/** Optional network entries with access type */
+	networks: z.array(openstackNetworkEntrySchema).optional()
 })
-	.superRefine((data: { quota: Array<{ key: string }> }, ctx: z.RefinementCtx) => {
-		const keys = data.quota.map((entry: { key: string }) => entry.key);
-		const duplicates = keys.filter((key: string, index: number) => keys.indexOf(key) !== index);
-		if (duplicates.length > 0) {
+	.superRefine((data, ctx: z.RefinementCtx) => {
+		// Check for duplicate quota keys
+		const quotaKeys = data.quota.map((entry) => entry.key);
+		const quotaDuplicates = quotaKeys.filter((key: string, index: number) => quotaKeys.indexOf(key) !== index);
+		if (quotaDuplicates.length > 0) {
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,
-				message: `Duplicate OpenStack quota keys: ${Array.from(new Set(duplicates)).join(', ')}.`,
+				message: `Duplicate OpenStack quota keys: ${Array.from(new Set(quotaDuplicates)).join(', ')}.`,
 				path: ['quota']
 			});
+		}
+
+		// Check for duplicate flavors
+		if (data.flavors && data.flavors.length > 0) {
+			const flavorDuplicates = data.flavors.filter(
+				(flavor: string, index: number) => data.flavors!.indexOf(flavor) !== index
+			);
+			if (flavorDuplicates.length > 0) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: `Duplicate OpenStack flavors: ${Array.from(new Set(flavorDuplicates)).join(', ')}.`,
+					path: ['flavors']
+				});
+			}
+		}
+
+		// Check for duplicate networks within each access type
+		if (data.networks && data.networks.length > 0) {
+			const externalNetworks = data.networks
+				.filter((n) => n.accessType === 'external')
+				.map((n) => n.name);
+			const sharedNetworks = data.networks
+				.filter((n) => n.accessType === 'shared')
+				.map((n) => n.name);
+
+			const externalDuplicates = externalNetworks.filter(
+				(name: string, index: number) => externalNetworks.indexOf(name) !== index
+			);
+			if (externalDuplicates.length > 0) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: `Duplicate networks in External access: ${Array.from(new Set(externalDuplicates)).join(', ')}.`,
+					path: ['networks']
+				});
+			}
+
+			const sharedDuplicates = sharedNetworks.filter(
+				(name: string, index: number) => sharedNetworks.indexOf(name) !== index
+			);
+			if (sharedDuplicates.length > 0) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: `Duplicate networks in Shared access: ${Array.from(new Set(sharedDuplicates)).join(', ')}.`,
+					path: ['networks']
+				});
+			}
 		}
 	});
 
@@ -84,6 +169,7 @@ export const addAllocationSchema = z.object({
 export type AddAllocationSchema = z.infer<typeof addAllocationSchema>;
 export type OpenstackAllocationForm = z.infer<typeof openstackAllocationSchema>;
 export type OpenstackQuotaEntry = z.infer<typeof openstackQuotaEntrySchema>;
+export type OpenstackNetworkEntry = z.infer<typeof openstackNetworkEntrySchema>;
 
 const allocationStatuses = ['new', 'active', 'revoked', 'denied', 'expired'] as const;
 
