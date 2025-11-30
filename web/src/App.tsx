@@ -44,6 +44,78 @@ import ErrorPage from './components/global/error-page';
 import ResourceList from './routes/admin/resources/list';
 import ResourceAttributesPage from './routes/admin/resources/attributes';
 
+// Create QueryClient outside component to prevent recreation on re-renders
+const queryClient = new QueryClient({
+	defaultOptions: {
+		queries: {
+			retry: 1,
+			staleTime: 30 * 1000 // 30 seconds default stale time
+		}
+	}
+});
+
+// Create router outside component to prevent recreation on re-renders
+const router = createBrowserRouter(
+	createRoutesFromElements(
+		<Route id="root" path="/" element={<Root />} errorElement={<ErrorPage />}>
+			<Route index element={<Index />} />
+			<Route path="auth/callback" element={<AuthLogin />} />
+			<Route path="/project" element={<PrivateRouteGuard />}>
+				<Route index element={<Project />} />
+				<Route path="add" element={<AddProject />} />
+				<Route path="invitation/:token" element={<ProjectInvitation />} />
+				<Route path=":id" element={<ProjectDetailGuard />}>
+					<Route index element={<ProjectDetail />} />
+					<Route path="members" element={<ProjectDetailMembers />} />
+					<Route path="archive" element={<ProjectArchivePage />} />
+					<Route path="publications" element={<ProjectPublicationsAddPage />} />
+					<Route path="allocation" element={<AllocationRequest />} />
+					<Route path="allocation/:allocationId" element={<AllocationDetail />} />
+					<Route path="request" element={<ProjectRequestPage />} />
+				</Route>
+			</Route>
+			<Route path="/publications" element={<PrivateRouteGuard />}>
+				<Route index element={<MyPublicationsPage />} />
+			</Route>
+			<Route path="/usage" element={<PrivateRouteGuard />}>
+				<Route index element={<UsageDashboard />} />
+			</Route>
+			<Route path="/admin" element={<AdminRouteGuard />}>
+				<Route index element={<AdminLinkPage />} />
+				<Route path="requests" element={<ProjectRequests />} />
+				<Route path="projects" element={<AllProjects />} />
+				<Route path="requests/:id" element={<ProjectDetailGuard />}>
+					<Route index element={<ProjectRequestDetail />} />
+				</Route>
+				<Route path="resources" element={<ResourceList />} />
+				<Route path="resources/add" element={<ResourceAddPage />} />
+				<Route path="resources/attributes" element={<ResourceAttributesPage />} />
+				<Route path="resources/:id" element={<ResourceDetailPage />} />
+				<Route path="resources/:id/edit" element={<ResourceEditPage />} />
+				<Route path="stages" element={<FailedProjects />} />
+				<Route path="allocations" element={<AdminAllocations />} />
+				<Route path="allocation-requests" element={<AllocationRequestsList />} />
+				<Route path="allocations/:allocationId" element={<AllocationRequestDetail />} />
+			</Route>
+			<Route path="/director" element={<AdminRouteGuard />}>
+				<Route index element={<AdminLinkPage />} />
+				<Route path="requests" element={<ProjectRequests />} />
+				<Route path="projects" element={<AllProjects />} />
+				<Route path="requests/:id" element={<ProjectDetailGuard />}>
+					<Route index element={<ProjectRequestDetail />} />
+				</Route>
+				<Route path="resources" element={<ResourceList />} />
+				<Route path="resources/attributes" element={<ResourceAttributesPage />} />
+				<Route path="resources/:id" element={<ResourceDetailPage />} />
+				<Route path="allocations" element={<AdminAllocations />} />
+				<Route path="allocation-requests" element={<AllocationRequestsList />} />
+				<Route path="allocations/:allocationId" element={<AllocationRequestDetail />} />
+			</Route>
+			<Route path="*" element={<NotFound />} />
+		</Route>
+	)
+);
+
 const App = () => {
 	const theme = createTheme({
 		primaryShade: 7,

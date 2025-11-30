@@ -47,7 +47,7 @@ const ProjectRequestDetail = () => {
 						message: t('routes.ProjectRequestDetail.reject_notification.message')
 					});
 					queryClient
-						.refetchQueries({
+						.invalidateQueries({
 							queryKey: ['project']
 						})
 						.then(() => {
@@ -89,7 +89,7 @@ const ProjectRequestDetail = () => {
 							color: 'green'
 						});
 						queryClient
-							.refetchQueries({
+							.invalidateQueries({
 								queryKey: ['project']
 							})
 							.then(() => {

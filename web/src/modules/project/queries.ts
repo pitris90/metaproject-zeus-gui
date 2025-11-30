@@ -27,6 +27,26 @@ export const useProjectsQuery = (status: ProjectStatus, pagination: Pagination, 
 			)
 	});
 
+/**
+ * Fetches all active projects for dropdown selection.
+ * This is a separate query from useProjectsQuery because:
+ * 1. It needs ALL projects (no pagination limit concerns)
+ * 2. Different cache key pattern (no pagination params in key)
+ * 3. Simpler return value (just the array) for Select components
+ */
+export const useMyActiveProjectsQuery = () =>
+	useQuery({
+		queryKey: ['project', 'active', 'dropdown'],
+		queryFn: async () => {
+			// Fetch all active projects - uses high limit to get everything
+			// For users with many projects, backend pagination would be needed
+			const response = await request<PaginationResponse<Project>>(
+				'/project?status=active&page=1&limit=1000&sort=title:asc'
+			);
+			return response?.data ?? [];
+		}
+	});
+
 export const useProjectRequestsQuery = (pagination: Pagination, sortSelector: string) =>
 	useQuery({
 		queryKey: ['project', 'requests', pagination.page, pagination.limit, sortSelector],

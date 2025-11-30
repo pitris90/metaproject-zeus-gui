@@ -1,11 +1,11 @@
-import { ActionIcon, Alert, Anchor, Box, Group, Text } from '@mantine/core';
+import { ActionIcon, Alert, Anchor, Badge, Box, Group, Text, Tooltip } from '@mantine/core';
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
 import dayjs from 'dayjs';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { type UseQueryResult } from '@tanstack/react-query';
-import { IconBan, IconCheck, IconClock, IconClockX, IconFolder, IconNews } from '@tabler/icons-react';
+import { IconBan, IconCheck, IconClock, IconClockX, IconFolder, IconNews, IconEdit } from '@tabler/icons-react';
 
 import { PAGE_SIZES } from '@/modules/api/pagination/constants';
 import { type PaginationResponse } from '@/modules/api/pagination/model';
@@ -40,11 +40,11 @@ const AllocationAdminTable = ({ useAllocationQuery, buildLink }: AllocationAdmin
 		);
 	}
 
-	if (isPending) {
+	if (isPending || !response) {
 		return <Loading />;
 	}
 
-	const metadata = response.metadata;
+	const metadata = response.metadata ?? { totalRecords: 0, currentPage: 1 };
 	const allocations = response.data ?? [];
 
 	return (
@@ -113,56 +113,76 @@ const AllocationAdminTable = ({ useAllocationQuery, buildLink }: AllocationAdmin
 							title: t('components.allocationTable.columns.status'),
 							sortable: true,
 							render: allocation => {
-								if (allocation.status === 'active') {
-									return (
-										<Group gap={4} c="green">
-											<IconCheck size={14} />
-											<Text size="sm">Active</Text>
-										</Group>
-									);
-								}
-								if (allocation.status === 'pending') {
-									return (
-										<Group gap={4} c="orange">
-											<IconClock size={14} />
-											<Text size="sm">Pending</Text>
-										</Group>
-									);
-								}
-								if (allocation.status === 'new') {
-									return (
-										<Group gap={4} c="blue.9">
-											<IconNews size={14} />
-											<Text size="sm">New</Text>
-										</Group>
-									);
-								}
-								if (allocation.status === 'denied') {
-									return (
-										<Group gap={4} c="red.9">
-											<IconBan size={14} />
-											<Text size="sm">Denied</Text>
-										</Group>
-									);
-								}
-								if (allocation.status === 'revoked') {
-									return (
-										<Group gap={4} c="red.9">
-											<IconBan size={14} />
-											<Text size="sm">Revoked</Text>
-										</Group>
-									);
-								}
-								if (allocation.status === 'expired') {
-									return (
-										<Group gap={4} c="orange.9">
-											<IconClockX size={14} />
-											<Text size="sm">Expired</Text>
-										</Group>
-									);
-								}
+								const statusElement = (() => {
+									if (allocation.status === 'active') {
+										return (
+											<Group gap={4} c="green">
+												<IconCheck size={14} />
+												<Text size="sm">Active</Text>
+											</Group>
+										);
+									}
+									if (allocation.status === 'pending') {
+										return (
+											<Group gap={4} c="orange">
+												<IconClock size={14} />
+												<Text size="sm">Pending</Text>
+											</Group>
+										);
+									}
+									if (allocation.status === 'new') {
+										return (
+											<Group gap={4} c="blue.9">
+												<IconNews size={14} />
+												<Text size="sm">New</Text>
+											</Group>
+										);
+									}
+									if (allocation.status === 'denied') {
+										return (
+											<Group gap={4} c="red.9">
+												<IconBan size={14} />
+												<Text size="sm">Denied</Text>
+											</Group>
+										);
+									}
+									if (allocation.status === 'revoked') {
+										return (
+											<Group gap={4} c="red.9">
+												<IconBan size={14} />
+												<Text size="sm">Revoked</Text>
+											</Group>
+										);
+									}
+									if (allocation.status === 'expired') {
+										return (
+											<Group gap={4} c="orange.9">
+												<IconClockX size={14} />
+												<Text size="sm">Expired</Text>
+											</Group>
+										);
+									}
 
-								return <Text size="sm">{allocation.status}</Text>;
+									return <Text size="sm">{allocation.status}</Text>;
+								})();
+
+								return (
+									<Group gap="xs">
+										{statusElement}
+										{allocation.hasPendingModification && (
+											<Tooltip label="Has pending OpenStack modification request">
+												<Badge
+													size="xs"
+													color="yellow"
+													variant="light"
+													leftSection={<IconEdit size={10} />}
+												>
+													Mod
+												</Badge>
+											</Tooltip>
+										)}
+									</Group>
+								);
 							}
 						},
 						{

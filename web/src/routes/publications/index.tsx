@@ -1,4 +1,4 @@
-import { Box, Button, Group, Modal, NumberInput, Stack, TextInput, Title } from '@mantine/core';
+import { Box, Button, Group, Modal, NumberInput, Select, Stack, Text, TextInput, Title } from '@mantine/core';
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
@@ -23,6 +23,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { Publication } from '@/modules/publication/model';
 import { searchByDoi } from '@/modules/publication/api/search-by-doi';
+import { useMyActiveProjectsQuery } from '@/modules/project/queries';
 
 const MyPublicationsPage = () => {
     const [page, setPage] = useState(1);
@@ -31,10 +32,12 @@ const MyPublicationsPage = () => {
     const sortQuery = useMemo(() => getSortQuery(sort.columnAccessor, sort.direction), [sort]);
 
     const { data, isPending, refetch } = useMyPublicationsQuery({ page, limit }, sortQuery);
+    // Fetch all active projects for dropdown selection
+    const { data: myProjects, isPending: isProjectsPending } = useMyActiveProjectsQuery();
     const assignMutation = useAssignMyPublicationMutation();
     const deleteMutation = useDeleteMyPublicationMutation();
     const queryClient = useQueryClient();
-    const [assignProjectId, setAssignProjectId] = useState<number | null>(null);
+    const [assignProjectId, setAssignProjectId] = useState<string | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isAddDoiModalOpen, setIsAddDoiModalOpen] = useState(false);
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -43,6 +46,15 @@ const MyPublicationsPage = () => {
     const doiForm = useForm<SearchByDoiSchema>({ resolver: zodResolver(searchByDoiSchema), defaultValues: { doi: '' } });
     const [isDoiSubmitting, setIsDoiSubmitting] = useState(false);
     const isHttpError = (value: unknown): value is HTTPError => value instanceof HTTPError;
+
+    // Transform projects for Select dropdown
+    const projectOptions = useMemo(() => {
+        if (!myProjects || !Array.isArray(myProjects)) return [];
+        return myProjects.map(project => ({
+            value: String(project.id),
+            label: project.title
+        }));
+    }, [myProjects]);
 
     const openAddDoiModal = () => {
         doiForm.reset({ doi: '' });
@@ -133,21 +145,23 @@ const MyPublicationsPage = () => {
         }
 
         try {
-            const projectId = assignProjectId;
-            await assignMutation.mutateAsync({ id: publicationToAssign.id, projectId });
-            notifications.show({ message: 'Assigned to project' });
+            const projectIdNum = Number(assignProjectId);
+            await assignMutation.mutateAsync({ id: publicationToAssign.id, projectId: projectIdNum });
+            notifications.show({ message: 'Publication assigned to project successfully' });
             closeAssignModal();
-            if (projectId) {
-                await queryClient.invalidateQueries({ queryKey: ['project', projectId, 'publications'] });
-            }
+            await queryClient.invalidateQueries({ queryKey: ['project', projectIdNum, 'publications'] });
             await refetch();
         } catch (error: unknown) {
             if (isHttpError(error) && error.response.status === 404) {
-                notifications.show({ message: 'You do not have access to update publications in that project.', color: 'yellow' });
+                notifications.show({ message: 'You do not have permission to add publications to that project.', color: 'yellow' });
+                return;
+            }
+            if (isHttpError(error) && error.response.status === 403) {
+                notifications.show({ message: 'You do not have permission to add publications to that project.', color: 'yellow' });
                 return;
             }
 
-            notifications.show({ message: 'Error', color: 'red' });
+            notifications.show({ message: 'Failed to assign publication. Please try again.', color: 'red' });
         }
     };
 
@@ -215,20 +229,36 @@ const MyPublicationsPage = () => {
                 </form>
             </Modal>
 
-            <Modal opened={isAssignModalOpen} onClose={closeAssignModal} title="Assign to project" centered>
+            <Modal opened={isAssignModalOpen} onClose={closeAssignModal} title="Assign publication to project" centered>
                 <form onSubmit={handleAssignSubmit}>
                     <Stack>
-                        <NumberInput
-                            label="Project ID"
-                            placeholder="Enter project ID"
-                            min={1}
-                            value={assignProjectId ?? undefined}
-                            onChange={(value: string | number) => setAssignProjectId(typeof value === 'number' ? value : null)}
-                            disabled={assignMutation.isPending}
-                        />
+                        {!isProjectsPending && projectOptions.length === 0 ? (
+                            <Text c="dimmed" size="sm">
+                                You don't have any active projects to assign publications to. 
+                                Please create a project first or wait for your project request to be approved.
+                            </Text>
+                        ) : (
+                            <Select
+                                label="Select project"
+                                placeholder={isProjectsPending ? "Loading projects..." : "Choose a project"}
+                                data={projectOptions}
+                                value={assignProjectId}
+                                onChange={setAssignProjectId}
+                                disabled={assignMutation.isPending || isProjectsPending}
+                                searchable
+                                nothingFoundMessage="No projects found"
+                                description="Only active projects you are a member of are shown"
+                            />
+                        )}
                         <Group justify="flex-end">
                             <Button variant="default" type="button" onClick={closeAssignModal}>Cancel</Button>
-                            <Button type="submit" loading={assignMutation.isPending} disabled={!assignProjectId}>Assign</Button>
+                            <Button 
+                                type="submit" 
+                                loading={assignMutation.isPending} 
+                                disabled={!assignProjectId || projectOptions.length === 0}
+                            >
+                                Assign
+                            </Button>
                         </Group>
                     </Stack>
                 </form>

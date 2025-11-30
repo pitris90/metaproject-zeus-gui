@@ -44,15 +44,22 @@ const AllocationRequest = () => {
 	const [selectedResourceId, setSelectedResourceId] = useState<number | null>(null);
 
 	const { mutate, isPending: isFormPending } = useRequestAllocationMutation();
-	const { data: resources, isPending, isError } = useResourceListQuery();
+	const { data: resources, isPending, isError } = useResourceListQuery(project.id);
 
 	const nextStep = () => setActive((current: number) => (current < MAX_STEPS ? current + 1 : current));
 	const prevStep = () => setActive((current: number) => (current > 0 ? current - 1 : current));
 
+	// Safely get resources as an array
+	const resourcesArray = useMemo(() => {
+		if (Array.isArray(resources)) {
+			return resources;
+		}
+		return [];
+	}, [resources]);
+
 	const filteredResources = useMemo(
-		() =>
-			resources?.filter((resource: Resource) => resource.resourceType.id === resourceType) ?? [],
-		[resources, resourceType]
+		() => resourcesArray.filter((resource: Resource) => resource.resourceType.id === resourceType),
+		[resourcesArray, resourceType]
 	);
 
 	if (isPending) {
@@ -64,7 +71,7 @@ const AllocationRequest = () => {
 	}
 
 	const onSubmit = (data: AddAllocationSchema) => {
-		const selectedResource = resources?.find((resource: Resource) => resource.id === Number(data.resourceId));
+		const selectedResource = resourcesArray.find((resource: Resource) => resource.id === Number(data.resourceId));
 		const isOpenstackResourceSelected =
 			selectedResource?.resourceType?.name?.toLowerCase() === OPENSTACK_RESOURCE_TYPE_NAME.toLowerCase();
 
@@ -86,6 +93,19 @@ const AllocationRequest = () => {
 			const organizationKey = data.openstack.organizationKey.trim();
 			const workplaceKey = data.openstack.workplaceKey.trim();
 
+			// Transform network entries from form format to API format
+			const networks = data.openstack.networks?.reduce<{ accessAsExternal: string[]; accessAsShared: string[] }>(
+				(acc, entry) => {
+					if (entry.accessType === 'external') {
+						acc.accessAsExternal.push(entry.name);
+					} else {
+						acc.accessAsShared.push(entry.name);
+					}
+					return acc;
+				},
+				{ accessAsExternal: [], accessAsShared: [] }
+			);
+
 			requestBody.openstack = {
 				domain: data.openstack.domain.trim(),
 				projectDescription: data.openstack.projectDescription.trim(),
@@ -98,7 +118,11 @@ const AllocationRequest = () => {
 				quota,
 				additionalTags: data.openstack.additionalTags
 					?.map((tag: string) => tag.trim())
-					.filter((tag: string) => tag.length > 0)
+					.filter((tag: string) => tag.length > 0),
+				flavors: data.openstack.flavors?.filter((f: string) => f.trim().length > 0),
+				networks: networks && (networks.accessAsExternal.length > 0 || networks.accessAsShared.length > 0)
+					? networks
+					: undefined
 			};
 		}
 
@@ -113,6 +137,11 @@ const AllocationRequest = () => {
 			},
 			{
 				onSuccess: () => {
+					// Invalidate resource queries to ensure fresh data for future allocation requests
+					queryClient.invalidateQueries({ queryKey: ['resource'] });
+					queryClient.invalidateQueries({ queryKey: ['resource-type'] });
+					// Invalidate allocation requests list for admin view
+					queryClient.invalidateQueries({ queryKey: ['allocations'] });
 					queryClient
 						.refetchQueries({
 							queryKey: ['project', project.id]

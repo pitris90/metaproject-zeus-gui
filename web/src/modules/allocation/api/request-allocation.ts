@@ -11,6 +11,11 @@ export type AllocationOpenstackRequestPayload = {
 	workplaceKey: string;
 	quota: Record<string, number>;
 	additionalTags?: string[];
+	flavors?: string[];
+	networks?: {
+		accessAsExternal?: string[];
+		accessAsShared?: string[];
+	};
 };
 
 export type AllocationRequestPayload = {

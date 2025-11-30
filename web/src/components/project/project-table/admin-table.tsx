@@ -40,11 +40,11 @@ const ProjectAdminTable = ({ useProjectQuery, buildLink }: ProjectAdminTableProp
 		);
 	}
 
-	if (isPending) {
+	if (isPending || !response) {
 		return <Skeleton w={200} />;
 	}
 
-	const metadata = response.metadata;
+	const metadata = response.metadata ?? { totalRecords: 0, currentPage: 1 };
 	const projects = response.data ?? [];
 
 	return (

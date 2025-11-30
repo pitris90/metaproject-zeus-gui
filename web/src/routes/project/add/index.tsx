@@ -5,6 +5,7 @@ import { Box, Flex, Title } from '@mantine/core';
 import { FormProvider, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { notifications } from '@mantine/notifications';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useAddProjectMutation } from '@/modules/project/mutations';
 import { ApiClientError } from '@/modules/api/model';
@@ -16,6 +17,7 @@ import RequestForm from '@/components/project/request-form';
 const AddProject: React.FC = () => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const { mutate, isPending } = useAddProjectMutation();
 	const form = useForm<RequestProjectSchema>({
 		resolver: zodResolver(requestProjectSchema)
@@ -24,8 +26,12 @@ const AddProject: React.FC = () => {
 	const onSubmit = (values: RequestProjectSchema) => {
 		mutate(values, {
 			onSuccess: projectId => {
+				// Invalidate project queries so admin list shows the new request
+				queryClient.invalidateQueries({ queryKey: ['project'] });
+				
 				if (!projectId) {
 					navigate('/project');
+					return;
 				}
 
 				notifications.show({
