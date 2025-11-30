@@ -1,4 +1,4 @@
-import { Button, Fieldset, Group, MultiSelect, NumberInput, Select, SegmentedControl, Stack, TagsInput, Text, Textarea, Tooltip } from '@mantine/core';
+import { Button, Fieldset, Group, MultiSelect, NumberInput, Select, SegmentedControl, Stack, TagsInput, Text, Textarea, TextInput, Tooltip } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { Controller, type ControllerRenderProps, type FieldArrayWithId, useFieldArray, useFormContext } from 'react-hook-form';
 import { useEffect, useMemo, useState } from 'react';
@@ -481,6 +481,16 @@ const OpenstackAllocationFields = () => {
 								option.value === currentNetwork || !usedInSameAccessType.has(option.value)
 							);
 
+							// Check if the current network exists in the OTHER access type
+							// If so, disable the toggle to prevent adding same network to both types
+							const otherAccessType = currentAccessType === 'external' ? 'shared' : 'external';
+							const existsInOtherAccessType = currentNetwork && (networkEntries ?? []).some(
+								(entry: OpenstackNetworkEntry | undefined, entryIndex: number) =>
+									entryIndex !== index &&
+									entry?.name === currentNetwork &&
+									entry?.accessType === otherAccessType
+							);
+
 							return (
 								<Group key={item.id} align="flex-end">
 									<Controller<AddAllocationSchema>
@@ -508,14 +518,21 @@ const OpenstackAllocationFields = () => {
 										render={(props: { field: ControllerRenderProps<AddAllocationSchema, `openstack.networks.${number}.accessType`> }) => (
 											<Stack gap={4}>
 												<Text size="sm" fw={500}>Access type</Text>
-												<SegmentedControl
-													value={props.field.value ?? 'external'}
-													onChange={props.field.onChange}
-													data={[
-														{ value: 'external', label: 'External' },
-														{ value: 'shared', label: 'Shared' }
-													]}
-												/>
+												<Tooltip
+													label={existsInOtherAccessType ? `This network is already assigned as ${otherAccessType}` : ''}
+													disabled={!existsInOtherAccessType}
+													withArrow
+												>
+													<SegmentedControl
+														value={props.field.value ?? 'external'}
+														onChange={props.field.onChange}
+														disabled={existsInOtherAccessType}
+														data={[
+															{ value: 'external', label: 'External' },
+															{ value: 'shared', label: 'Shared' }
+														]}
+													/>
+												</Tooltip>
 											</Stack>
 										)}
 									/>

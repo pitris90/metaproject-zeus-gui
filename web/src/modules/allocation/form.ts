@@ -38,7 +38,7 @@ const openstackQuotaEntrySchema = z.object({
 		}),
 	value: z
 		.number()
-		.min(0, { message: 'Quota value must be zero or positive.' })
+		.min(1, { message: 'Quota value must be at least 1.' })
 		.finite()
 });
 
@@ -74,7 +74,19 @@ export const openstackAllocationSchema = z.object({
 			}
 		}),
 	projectDescription: z.string().min(5),
-	disableDate: z.date().nullable().optional(),
+	disableDate: z
+		.date()
+		.nullable()
+		.optional()
+		.refine(
+			(date: Date | null | undefined) => {
+				if (!date) return true; // null/undefined is valid
+				const today = new Date();
+				today.setHours(0, 0, 0, 0); // Start of today
+				return date >= today;
+			},
+			{ message: 'Disable date must be today or in the future.' }
+		),
 	customerKey: z.string().min(1),
 	organizationKey: z.string().min(1),
 	workplaceKey: z.string().min(1),

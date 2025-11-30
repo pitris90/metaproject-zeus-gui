@@ -4,6 +4,7 @@ import { Badge, Box, Divider, Group, Title } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 
 import notFound from '@/components/global/not-found';
 import { useAllocationDetailQuery } from '@/modules/allocation/api/allocation-detail';
@@ -19,19 +20,21 @@ const AllocationRequestDetail = () => {
 	const role = getCurrentRole();
 	const prefix = role === Role.ADMIN ? '/admin' : '/director';
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const { allocationId } = useParams();
 
-	if (!allocationId || isNaN(+allocationId)) {
+	const allocationIdNum = allocationId && !isNaN(+allocationId) ? +allocationId : undefined;
+	const { data: allocation, isPending, isError } = useAllocationDetailQuery(allocationIdNum);
+
+	if (!allocationIdNum) {
 		return notFound();
 	}
-
-	const { data: allocation, isPending, isError } = useAllocationDetailQuery(+allocationId);
 
 	if (isError) {
 		return <ErrorPage />;
 	}
 
-	if (isPending) {
+	if (isPending || !allocation) {
 		return <Loading />;
 	}
 
@@ -63,6 +66,9 @@ const AllocationRequestDetail = () => {
 				allocation={allocation}
 				isApprovePage
 				onSuccess={() => {
+					// Invalidate allocation queries so lists show updated status
+					queryClient.invalidateQueries({ queryKey: ['allocations'] });
+					queryClient.invalidateQueries({ queryKey: ['allocation'] });
 					notifications.show({
 						message: 'Allocation request changed'
 					});

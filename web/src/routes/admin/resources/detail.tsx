@@ -19,17 +19,18 @@ const ResourceDetailPage = () => {
 	const prefix = currentRole === Role.ADMIN ? '/admin' : '/director';
 	const { id } = useParams();
 
-	if (!id || isNaN(+id)) {
+	const idNum = id && !isNaN(+id) ? +id : null;
+	const { data, isPending, isError } = useResourceDetailQuery(idNum);
+
+	if (!idNum) {
 		return <NotFound />;
 	}
-
-	const { data, isPending, isError } = useResourceDetailQuery(+id);
 
 	if (isPending) {
 		return <Loading />;
 	}
 
-	if (isError) {
+	if (isError || !data) {
 		return <NotFound />;
 	}
 

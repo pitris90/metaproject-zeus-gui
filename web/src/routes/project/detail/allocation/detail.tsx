@@ -14,17 +14,18 @@ const AllocationDetail = () => {
 	const { project } = useProjectOutletContext();
 	const { allocationId } = useParams();
 
-	if (!allocationId || isNaN(+allocationId)) {
+	const allocationIdNum = allocationId && !isNaN(+allocationId) ? +allocationId : undefined;
+	const { data: allocation, isPending, isError } = useAllocationDetailQuery(allocationIdNum);
+
+	if (!allocationIdNum) {
 		return notFound();
 	}
-
-	const { data: allocation, isPending, isError } = useAllocationDetailQuery(+allocationId);
 
 	if (isError) {
 		return <ErrorPage />;
 	}
 
-	if (isPending) {
+	if (isPending || !allocation) {
 		return <Loading />;
 	}
 

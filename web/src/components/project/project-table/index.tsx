@@ -50,7 +50,7 @@ const ProjectTable = ({ status, title }: ProjectTableProps) => {
 		);
 	}
 
-	if (isPending) {
+	if (isPending || !response) {
 		return <Loading />;
 	}
 
@@ -69,7 +69,7 @@ const ProjectTable = ({ status, title }: ProjectTableProps) => {
 		await refetch();
 	};
 
-	const metadata = response.metadata;
+	const metadata = response.metadata ?? { totalRecords: 0, currentPage: 1 };
 	const projects = response.data ?? [];
 
 	return (

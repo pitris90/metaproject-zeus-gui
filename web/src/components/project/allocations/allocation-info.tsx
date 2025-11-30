@@ -287,7 +287,15 @@ const AllocationInfo = ({ allocation, isApprovePage, onSuccess }: AllocationInfo
 				</Flex>
 			</Stack>
 
-			{allocation.openstack && <OpenstackAllocationInfo data={allocation.openstack} />}
+			{allocation.openstack && (
+				<OpenstackAllocationInfo
+					data={allocation.openstack}
+					history={allocation.openstackHistory}
+					canModify={allocation.canModifyOpenstack}
+					allocationId={allocation.id}
+					isChangeable={allocation.isChangeable}
+				/>
+			)}
 
 			<Stack mt={20}>
 				<Title order={2}>Users in allocation</Title>

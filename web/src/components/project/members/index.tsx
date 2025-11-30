@@ -45,7 +45,7 @@ const ProjectMembers = ({ id }: ProjectMembersProps) => {
 		getSortQuery(sortStatus.columnAccessor, sortStatus.direction)
 	);
 
-	if (isPending) {
+	if (isPending || !response) {
 		return <Loading />;
 	}
 
@@ -53,7 +53,7 @@ const ProjectMembers = ({ id }: ProjectMembersProps) => {
 		return <ErrorAlert />;
 	}
 
-	const metadata = response.metadata;
+	const metadata = response.metadata ?? { totalRecords: 0, currentPage: 1 };
 	const members = response.data ?? [];
 
 	const onPageChange = async (newPage: number) => {

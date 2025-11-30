@@ -23,11 +23,8 @@ const ResourceEditPage = () => {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 
-	if (!id || isNaN(+id)) {
-		return <NotFound />;
-	}
-
-	const { data, isPending, isError } = useResourceDetailQuery(+id);
+	const idNum = id && !isNaN(+id) ? +id : null;
+	const { data, isPending, isError } = useResourceDetailQuery(idNum);
 	const { mutate, isPending: isMutationPending } = useEditResourceMutation();
 	const [attributes, setAttributes] = useState<Attribute[]>([]);
 
@@ -35,18 +32,22 @@ const ResourceEditPage = () => {
 		resolver: zodResolver(addResourceSchema)
 	});
 
+	if (!idNum) {
+		return <NotFound />;
+	}
+
 	if (isPending) {
 		return <Loading />;
 	}
 
-	if (isError) {
+	if (isError || !data) {
 		return <NotFound />;
 	}
 
-	const onSubmit = (data: AddResourceSchema) => {
+	const onSubmit = (formData: AddResourceSchema) => {
 		const editData = {
-			...data,
-			id: +id
+			...formData,
+			id: idNum!
 		};
 		mutate(editData, {
 			onSuccess: () => {
@@ -56,10 +57,10 @@ const ResourceEditPage = () => {
 				});
 				queryClient
 					.refetchQueries({
-						queryKey: ['resource', +id]
+						queryKey: ['resource', idNum]
 					})
 					.then(() => {
-						navigate(`/admin/resources/${id}`);
+						navigate(`/admin/resources/${idNum}`);
 					});
 			},
 			onError: () => {

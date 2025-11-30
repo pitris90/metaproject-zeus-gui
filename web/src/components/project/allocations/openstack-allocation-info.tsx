@@ -1,11 +1,17 @@
-import { Anchor, Badge, Card, Group, Stack, Table, Text, ThemeIcon, Title } from '@mantine/core';
-import { IconCheck, IconGitBranch, IconInfoCircle, IconX } from '@tabler/icons-react';
+import { Accordion, Badge, Button, Card, Group, Stack, Table, Text, ThemeIcon, Title } from '@mantine/core';
+import { IconCheck, IconClock, IconGitMerge, IconGitPullRequest, IconX, IconEdit } from '@tabler/icons-react';
 import dayjs from 'dayjs';
+import React, { useState } from 'react';
 
-import { type AllocationDetail } from '@/modules/allocation/model';
+import { type AllocationDetail, type OpenstackRequest, type OpenstackRequestStatus, type MergeRequestState } from '@/modules/allocation/model';
+import OpenstackModifyModal from './openstack-modify-modal';
 
 type OpenstackAllocationInfoProps = {
 	data: NonNullable<AllocationDetail['openstack']>;
+	history?: OpenstackRequest[];
+	canModify?: boolean;
+	allocationId: number;
+	isChangeable?: boolean;
 };
 
 const formatDate = (value?: string | null): string => {
@@ -17,8 +23,33 @@ const formatDate = (value?: string | null): string => {
 	return parsed.isValid() ? parsed.format('DD.MM.YYYY') : value;
 };
 
-const OpenstackAllocationInfo = ({ data }: OpenstackAllocationInfoProps) => {
-	const quotaRows = Object.entries(data.quota ?? {})
+const getRequestStatusConfig = (status: OpenstackRequestStatus): { color: string; label: string } => {
+	switch (status) {
+		case 'approved':
+			return { color: 'green', label: 'Approved' };
+		case 'denied':
+			return { color: 'red', label: 'Denied' };
+		case 'pending':
+		default:
+			return { color: 'yellow', label: 'Pending' };
+	}
+};
+
+const getMergeRequestStateConfig = (state: MergeRequestState): { color: string; label: string; icon: React.ReactNode } | null => {
+	switch (state) {
+		case 'merged':
+			return { color: 'green', label: 'Merged', icon: <IconGitMerge size={14} /> };
+		case 'opened':
+			return { color: 'blue', label: 'Open', icon: <IconGitPullRequest size={14} /> };
+		case 'closed':
+			return { color: 'red', label: 'Closed', icon: <IconX size={14} /> };
+		default:
+			return null;
+	}
+};
+
+const OpenstackRequestDetails = ({ request }: { request: OpenstackRequest }) => {
+	const quotaRows = Object.entries(request.quota ?? {})
 		.sort(([a], [b]) => a.localeCompare(b))
 		.map(([key, value]) => (
 			<Table.Tr key={key}>
@@ -27,147 +58,216 @@ const OpenstackAllocationInfo = ({ data }: OpenstackAllocationInfoProps) => {
 			</Table.Tr>
 		));
 
-	const additionalTags = (data.additionalTags ?? []).filter((tag: string) => tag.trim().length > 0);
-	const processedColor = data.processed ? 'green' : 'red';
-	const processedLabel = data.processed ? 'Processed' : 'Pending';
+	const additionalTags = (request.additionalTags ?? []).filter((tag: string) => tag.trim().length > 0);
+	const statusConfig = getRequestStatusConfig(request.status);
+	const mrStateConfig = getMergeRequestStateConfig(request.mergeRequestState);
 
 	return (
-		<Card withBorder radius="md" padding="md">
-			<Stack gap="md">
-				<Group justify="space-between">
-					<Title order={4}>OpenStack Details</Title>
-					<Badge color={processedColor} leftSection={<ThemeIcon color={processedColor} size="sm" variant="light" radius="xl">{data.processed ? <IconCheck size={14} /> : <IconInfoCircle size={14} />}</ThemeIcon>}>
-						{processedLabel}
+		<Stack gap="md">
+			<Group gap="xs">
+				<Badge color={statusConfig.color} variant="light">
+					{statusConfig.label}
+				</Badge>
+				{mrStateConfig && (
+					<Badge
+						color={mrStateConfig.color}
+						variant="light"
+						leftSection={mrStateConfig.icon}
+					>
+						MR: {mrStateConfig.label}
 					</Badge>
-				</Group>
-				<Stack gap={4}>
-					<Text size="sm" c="dimmed">Domain</Text>
-					<Text fw={500}>{data.domain}</Text>
-				</Stack>
-				<Stack gap={4}>
-					<Text size="sm" c="dimmed">Resource type</Text>
-					<Text fw={500}>{data.resourceType}</Text>
-				</Stack>
-				<Group gap="xl" align="flex-start" wrap="wrap">
-					<Stack gap={4}>
-						<Text size="sm" c="dimmed">Customer</Text>
-						<Text fw={500}>{data.customerKey}</Text>
-					</Stack>
-					<Stack gap={4}>
-						<Text size="sm" c="dimmed">Organization</Text>
-						<Text fw={500}>{data.organizationKey}</Text>
-					</Stack>
-					<Stack gap={4}>
-						<Text size="sm" c="dimmed">Workplace</Text>
-						<Text fw={500}>{data.workplaceKey}</Text>
-					</Stack>
-				</Group>
-				<Stack gap={4}>
-					<Text size="sm" c="dimmed">Disable date</Text>
-					<Text fw={500}>{formatDate(data.disableDate)}</Text>
-				</Stack>
-				<Stack gap={4}>
-					<Text size="sm" c="dimmed">Project description</Text>
-					<Text>{data.projectDescription}</Text>
-				</Stack>
-				<Stack gap={6}>
-					<Text size="sm" c="dimmed">Additional tags</Text>
-					{additionalTags.length > 0 ? (
-						<Group gap="xs">
-							{additionalTags.map((tag: string) => (
-								<Badge key={tag} radius="sm" color="blue" variant="light">
-									{tag}
-								</Badge>
-							))}
-						</Group>
-					) : (
-						<Text c="dimmed">No additional tags</Text>
-					)}
-				</Stack>
-				{data.flavors && data.flavors.length > 0 && (
-					<Stack gap={6}>
-						<Text size="sm" c="dimmed">Requested flavors</Text>
-						<Group gap="xs">
-							{data.flavors.map((flavor: string) => (
-								<Badge key={flavor} radius="sm" color="grape" variant="light">
-									{flavor}
-								</Badge>
-							))}
-						</Group>
-					</Stack>
 				)}
-				{data.networks && (data.networks.accessAsExternal?.length || data.networks.accessAsShared?.length) ? (
-					<Stack gap={6}>
-						<Text size="sm" c="dimmed">Requested networks</Text>
-						<Stack gap="xs">
-							{data.networks.accessAsExternal?.length > 0 && (
-								<Group gap="xs">
-									<Text size="xs" c="dimmed">External:</Text>
-									{data.networks.accessAsExternal.map((network: string) => (
-										<Badge key={`ext-${network}`} radius="sm" color="cyan" variant="light">
-											{network}
-										</Badge>
-									))}
-								</Group>
-							)}
-							{data.networks.accessAsShared?.length > 0 && (
-								<Group gap="xs">
-									<Text size="xs" c="dimmed">Shared:</Text>
-									{data.networks.accessAsShared.map((network: string) => (
-										<Badge key={`shared-${network}`} radius="sm" color="teal" variant="light">
-											{network}
-										</Badge>
-									))}
-								</Group>
-							)}
-						</Stack>
-					</Stack>
-				) : null}
-				<Stack gap={6}>
-					<Group gap="sm" align="center">
-						<Title order={5} m={0}>
-							Quota definitions
-						</Title>
-						{quotaRows.length === 0 && <Badge color="red" variant="light">Missing</Badge>}
+				{request.processed && (
+					<Badge color="green" leftSection={<ThemeIcon color="green" size="sm" variant="light" radius="xl"><IconCheck size={14} /></ThemeIcon>}>
+						Processed
+					</Badge>
+				)}
+			</Group>
+			<Stack gap={4}>
+				<Text size="sm" c="dimmed">Domain</Text>
+				<Text fw={500}>{request.domain}</Text>
+			</Stack>
+			<Group gap="xl" align="flex-start" wrap="wrap">
+				<Stack gap={4}>
+					<Text size="sm" c="dimmed">Customer</Text>
+					<Text fw={500}>{request.customerKey}</Text>
+				</Stack>
+				<Stack gap={4}>
+					<Text size="sm" c="dimmed">Organization</Text>
+					<Text fw={500}>{request.organizationKey}</Text>
+				</Stack>
+				<Stack gap={4}>
+					<Text size="sm" c="dimmed">Workplace</Text>
+					<Text fw={500}>{request.workplaceKey}</Text>
+				</Stack>
+			</Group>
+			<Stack gap={4}>
+				<Text size="sm" c="dimmed">Disable date</Text>
+				<Text fw={500}>{formatDate(request.disableDate)}</Text>
+			</Stack>
+			<Stack gap={4}>
+				<Text size="sm" c="dimmed">Project description</Text>
+				<Text>{request.projectDescription}</Text>
+			</Stack>
+			<Stack gap={6}>
+				<Text size="sm" c="dimmed">Additional tags</Text>
+				{additionalTags.length > 0 ? (
+					<Group gap="xs">
+						{additionalTags.map((tag: string) => (
+							<Badge key={tag} radius="sm" color="blue" variant="light">
+								{tag}
+							</Badge>
+						))}
 					</Group>
-					{quotaRows.length > 0 ? (
-						<Table striped withRowBorders={false} highlightOnHover>
-							<Table.Tbody>{quotaRows}</Table.Tbody>
-						</Table>
-					) : (
-						<Text c="dimmed">No quotas provided.</Text>
-					)}
-				</Stack>
-				<Group gap="md" align="center">
-					<ThemeIcon color={data.branchName ? 'green' : 'gray'} variant="light">
-						{data.branchName ? <IconGitBranch size={16} /> : <IconX size={16} />}
-					</ThemeIcon>
-					<Stack gap={0}>
-						<Text size="sm" c="dimmed">
-							Merge request
-						</Text>
-						{data.mergeRequestUrl ? (
-							<Anchor href={data.mergeRequestUrl} target="_blank" rel="noreferrer">
-								Open merge request
-							</Anchor>
-						) : (
-							<Text>No merge request created yet.</Text>
-						)}
-					</Stack>
-				</Group>
-				{data.branchName && (
-					<Text size="sm">Branch: {data.branchName}</Text>
-				)}
-				{data.yamlPath && (
-					<Text size="sm">YAML path: {data.yamlPath}</Text>
-				)}
-				{data.processedAt && (
-					<Text size="sm" c="dimmed">
-						Processed at: {formatDate(data.processedAt)}
-					</Text>
+				) : (
+					<Text c="dimmed">No additional tags</Text>
 				)}
 			</Stack>
-		</Card>
+			{request.flavors && request.flavors.length > 0 && (
+				<Stack gap={6}>
+					<Text size="sm" c="dimmed">Requested flavors</Text>
+					<Group gap="xs">
+						{request.flavors.map((flavor: string) => (
+							<Badge key={flavor} radius="sm" color="grape" variant="light">
+								{flavor}
+							</Badge>
+						))}
+					</Group>
+				</Stack>
+			)}
+			{request.networks && (request.networks.accessAsExternal?.length || request.networks.accessAsShared?.length) ? (
+				<Stack gap={6}>
+					<Text size="sm" c="dimmed">Requested networks</Text>
+					<Stack gap="xs">
+						{(request.networks.accessAsExternal?.length ?? 0) > 0 && (
+							<Group gap="xs">
+								<Text size="xs" c="dimmed">External:</Text>
+								{request.networks.accessAsExternal?.map((network: string) => (
+									<Badge key={`ext-${network}`} radius="sm" color="cyan" variant="light">
+										{network}
+									</Badge>
+								))}
+							</Group>
+						)}
+						{(request.networks.accessAsShared?.length ?? 0) > 0 && (
+							<Group gap="xs">
+								<Text size="xs" c="dimmed">Shared:</Text>
+								{request.networks.accessAsShared?.map((network: string) => (
+									<Badge key={`shared-${network}`} radius="sm" color="teal" variant="light">
+										{network}
+									</Badge>
+								))}
+							</Group>
+						)}
+					</Stack>
+				</Stack>
+			) : null}
+			<Stack gap={6}>
+				<Group gap="sm" align="center">
+					<Title order={5} m={0}>
+						Quota definitions
+					</Title>
+					{quotaRows.length === 0 && <Badge color="red" variant="light">Missing</Badge>}
+				</Group>
+				{quotaRows.length > 0 ? (
+					<Table striped withRowBorders={false} highlightOnHover>
+						<Table.Tbody>{quotaRows}</Table.Tbody>
+					</Table>
+				) : (
+					<Text c="dimmed">No quotas provided.</Text>
+				)}
+			</Stack>
+			<Text size="xs" c="dimmed">
+				Created: {formatDate(request.createdAt)}
+			</Text>
+		</Stack>
+	);
+};
+
+const OpenstackAllocationInfo = ({ data, history, canModify, allocationId, isChangeable }: OpenstackAllocationInfoProps) => {
+	const [modifyModalOpened, setModifyModalOpened] = useState(false);
+
+	const statusConfig = getRequestStatusConfig(data.status);
+	const mrStateConfig = getMergeRequestStateConfig(data.mergeRequestState);
+
+	return (
+		<>
+			<Card withBorder radius="md" padding="md" mt="md">
+				<Stack gap="md">
+					<Group justify="space-between">
+						<Title order={4}>OpenStack Details</Title>
+						<Group gap="xs">
+							<Badge color={statusConfig.color} variant="light">
+								{statusConfig.label}
+							</Badge>
+							{mrStateConfig && (
+								<Badge
+									color={mrStateConfig.color}
+									variant="light"
+									leftSection={mrStateConfig.icon}
+								>
+									MR: {mrStateConfig.label}
+								</Badge>
+							)}
+							{data.processed && (
+								<Badge color="green" leftSection={<ThemeIcon color="green" size="sm" variant="light" radius="xl"><IconCheck size={14} /></ThemeIcon>}>
+									Processed
+								</Badge>
+							)}
+							{!data.processed && data.status === 'pending' && (
+								<Badge color="yellow" leftSection={<ThemeIcon color="yellow" size="sm" variant="light" radius="xl"><IconClock size={14} /></ThemeIcon>}>
+									Awaiting Approval
+								</Badge>
+							)}
+						</Group>
+					</Group>
+
+					<OpenstackRequestDetails request={data} />
+
+					{canModify && isChangeable && (
+						<Group justify="flex-end" mt="md">
+							<Button
+								leftSection={<IconEdit size={16} />}
+								variant="light"
+								color="blue"
+								onClick={() => setModifyModalOpened(true)}
+							>
+								Request Modification
+							</Button>
+						</Group>
+					)}
+				</Stack>
+			</Card>
+
+			{history && history.length > 0 && (
+				<Accordion mt="md" variant="contained">
+					<Accordion.Item value="history">
+						<Accordion.Control icon={<IconClock size={16} />}>
+							Request History ({history.length} previous {history.length === 1 ? 'request' : 'requests'})
+						</Accordion.Control>
+						<Accordion.Panel>
+							<Stack gap="lg">
+								{history.map((request, index) => (
+									<Card key={request.id} withBorder radius="sm" padding="sm">
+										<Text size="sm" fw={500} mb="xs">
+											Request #{request.id} - {formatDate(request.createdAt)}
+										</Text>
+										<OpenstackRequestDetails request={request} />
+									</Card>
+								))}
+							</Stack>
+						</Accordion.Panel>
+					</Accordion.Item>
+				</Accordion>
+			)}
+
+			<OpenstackModifyModal
+				opened={modifyModalOpened}
+				onClose={() => setModifyModalOpened(false)}
+				allocationId={allocationId}
+				currentRequest={data}
+			/>
+		</>
 	);
 };
 

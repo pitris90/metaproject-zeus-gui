@@ -6,11 +6,13 @@ import { getStepUpAccess } from '@/modules/auth/methods/getStepUpAccess';
 import { StepUpAccess } from '@/modules/auth/model';
 
 export const request = async <T>(url: string, init?: Options): Promise<T> => {
-	const request = await requestWrapper<T>(url, init);
-	const responseText = await request.text();
+	const response = await requestWrapper<T>(url, init);
+	const responseText = await response.text();
 
 	if (!responseText) {
-		return {} as T;
+		// Return undefined for empty responses - callers should handle this case
+		// This commonly happens with 204 No Content or successful mutations
+		return undefined as unknown as T;
 	}
 
 	return JSON.parse(responseText);

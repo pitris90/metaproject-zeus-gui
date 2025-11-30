@@ -68,7 +68,8 @@ const ResourceStep = ({ resources, setSelectedResourceId, selectedResourceId, is
 		if (!current.quota || current.quota.length === 0) {
 			form.setValue('openstack.quota', defaultQuota, { shouldDirty: false, shouldValidate: false });
 		}
-	}, [form, isOpenstackResource]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [isOpenstackResource]); // form is stable from useFormContext, no need to include
 
 	if (isDetailPending && fetchStatus === 'fetching') {
 		return <Loading />;
@@ -78,10 +79,10 @@ const ResourceStep = ({ resources, setSelectedResourceId, selectedResourceId, is
 		return <ErrorAlert />;
 	}
 
-	const quantityLabel = resourceDetail?.attributes.find(
+	const quantityLabel = resourceDetail?.attributes?.find(
 		(attribute: ResourceDetailAttribute) => attribute.key === QUANTITY_LABEL
 	)?.value;
-	const quantityDefaultValue = resourceDetail?.attributes.find(
+	const quantityDefaultValue = resourceDetail?.attributes?.find(
 		(attribute: ResourceDetailAttribute) => attribute.key === QUANTITY_DEFAULT_VALUE
 	)?.value;
 	const attributes =
@@ -95,11 +96,11 @@ const ResourceStep = ({ resources, setSelectedResourceId, selectedResourceId, is
 				<Controller<AddAllocationSchema>
 					control={form.control}
 					name="resourceId"
-					defaultValue={selectedResourceId?.toString() ?? null}
+					defaultValue=""
 					render={({ field }: { field: ControllerRenderProps<AddAllocationSchema, 'resourceId'> }) => (
 						<Select
 							name={field.name}
-							value={field.value}
+							value={field.value || null}
 							label={t('components.resourceStepper.resource.resource.label')}
 							withAsterisk
 							data={resources.map((resource: Resource) => ({

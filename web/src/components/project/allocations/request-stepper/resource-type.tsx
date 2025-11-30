@@ -26,10 +26,6 @@ const getResourceTypeIcon = (name: string) => {
 		return <IconCloudComputing style={style} />;
 	}
 
-	if (name === 'Cloud') {
-		return <IconCloud style={style} />;
-	}
-
 	if (name === 'Server') {
 		return <IconServer style={style} />;
 	}

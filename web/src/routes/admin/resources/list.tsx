@@ -72,6 +72,9 @@ const ResourceList = () => {
 	const prefix = currentRole === Role.ADMIN ? '/admin' : '/director';
 	const { data, isPending, isError } = useResourceListQuery();
 
+	// useMemo must be called before any early returns to maintain consistent hook order
+	const dataTree = useMemo(() => (data ? getDataTree(data, null) : []), [data]);
+
 	if (isPending) {
 		return <Loading />;
 	}
@@ -79,8 +82,6 @@ const ResourceList = () => {
 	if (isError) {
 		return <ErrorAlert />;
 	}
-
-	const dataTree = useMemo(() => getDataTree(data, null), [data]);
 
 	return (
 		<Box>
