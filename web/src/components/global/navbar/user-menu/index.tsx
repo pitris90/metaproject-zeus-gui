@@ -4,6 +4,8 @@ import { IconChevronDown, IconLogout } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 
+import { IS_USER_STEP_UP, MAX_ROLE } from '@/modules/auth/constants';
+
 import classes from './user-menu.module.css';
 
 type UserMenuProps = {
@@ -17,6 +19,8 @@ const UserMenu = ({ fullWidth = false, isOpened }: UserMenuProps) => {
 	const [userMenuOpened, setUserMenuOpened] = useState(isOpened);
 
 	const logout = async () => {
+		localStorage.removeItem(MAX_ROLE);
+		localStorage.removeItem(IS_USER_STEP_UP);
 		await removeUser();
 		await revokeTokens();
 		navigate('/');
