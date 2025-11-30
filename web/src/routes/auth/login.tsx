@@ -13,11 +13,13 @@ const AuthLogin = () => {
 		if (isAuthenticated) {
 			navigate('/project');
 		}
-	}, [isAuthenticated]);
+	}, [isAuthenticated, navigate]);
 
-	if (params.has('error')) {
-		navigate('/');
-	}
+	useEffect(() => {
+		if (params.has('error')) {
+			navigate('/');
+		}
+	}, [params, navigate]);
 
 	return <Loading text="Logging in..." />;
 };
