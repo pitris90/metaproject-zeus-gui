@@ -31,9 +31,14 @@ const ProjectInfo = ({ project, showFullDescription }: ProjectInfoProps) => {
 						<Title order={4}>Principal investigator:</Title>
 						<Text size="lg">{project.user.name}</Text>
 					</Group>
-					<Text c="dimmed" size="sm">
-						Created at: {dayjs(project.createdAt).format('DD.MM.YYYY')}
-					</Text>
+					<Stack gap={0} align="flex-end">
+						<Text c="dimmed" size="sm">
+							Created at: {dayjs(project.createdAt).format('DD.MM.YYYY')}
+						</Text>
+						<Text c="dimmed" size="xs">
+							Slug: {project.projectSlug}
+						</Text>
+					</Stack>
 				</Group>
 				<Group>
 					<Title order={4}>Link:</Title>
