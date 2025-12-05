@@ -3,6 +3,7 @@ import { type User, type UserInfo } from '@/modules/user/model';
 export type Project = {
 	id: number;
 	title: string;
+	projectSlug: string;
 	link: string;
 	description: string;
 	status: string;
