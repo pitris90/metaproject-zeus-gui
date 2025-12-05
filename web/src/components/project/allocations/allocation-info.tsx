@@ -294,6 +294,8 @@ const AllocationInfo = ({ allocation, isApprovePage, onSuccess }: AllocationInfo
 					canModify={allocation.canModifyOpenstack}
 					allocationId={allocation.id}
 					isChangeable={allocation.isChangeable}
+					allocationStartDate={allocation.startDate}
+					allocationEndDate={allocation.endDate}
 				/>
 			)}
 
