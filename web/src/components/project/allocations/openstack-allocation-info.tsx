@@ -145,10 +145,6 @@ const OpenstackRequestDetails = ({ request }: { request: OpenstackRequest }) => 
 				<Text size="sm" c="dimmed">Disable date</Text>
 				<Text fw={500}>{formatDate(request.disableDate)}</Text>
 			</Stack>
-			<Stack gap={4}>
-				<Text size="sm" c="dimmed">Project description</Text>
-				<Text>{request.projectDescription}</Text>
-			</Stack>
 			<Stack gap={6}>
 				<Text size="sm" c="dimmed">Additional tags</Text>
 				{additionalTags.length > 0 ? (
