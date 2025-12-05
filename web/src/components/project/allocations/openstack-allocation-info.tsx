@@ -12,6 +12,46 @@ type OpenstackAllocationInfoProps = {
 	canModify?: boolean;
 	allocationId: number;
 	isChangeable?: boolean;
+	allocationStartDate?: string;
+	allocationEndDate?: string;
+};
+
+/**
+ * Calculates the duration between two dates and formats it as a human-readable string.
+ * Returns the total hours, which represents max walltime/cputime for the allocation.
+ */
+const calculateMaxWalltime = (startDate?: string, endDate?: string): { hours: number; formatted: string } | null => {
+	if (!startDate || !endDate) {
+		return null;
+	}
+
+	const start = dayjs(startDate);
+	const end = dayjs(endDate);
+
+	if (!start.isValid() || !end.isValid()) {
+		return null;
+	}
+
+	const diffMs = end.diff(start);
+	if (diffMs < 0) {
+		return null;
+	}
+
+	const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
+	const days = Math.floor(totalHours / 24);
+	const hours = totalHours % 24;
+
+	let formatted = '';
+	if (days > 0) {
+		formatted += `${days} day${days !== 1 ? 's' : ''}`;
+		if (hours > 0) {
+			formatted += ` ${hours} hour${hours !== 1 ? 's' : ''}`;
+		}
+	} else {
+		formatted = `${hours} hour${hours !== 1 ? 's' : ''}`;
+	}
+
+	return { hours: totalHours, formatted };
 };
 
 const formatDate = (value?: string | null): string => {
@@ -184,11 +224,12 @@ const OpenstackRequestDetails = ({ request }: { request: OpenstackRequest }) => 
 	);
 };
 
-const OpenstackAllocationInfo = ({ data, history, canModify, allocationId, isChangeable }: OpenstackAllocationInfoProps) => {
+const OpenstackAllocationInfo = ({ data, history, canModify, allocationId, isChangeable, allocationStartDate, allocationEndDate }: OpenstackAllocationInfoProps) => {
 	const [modifyModalOpened, setModifyModalOpened] = useState(false);
 
 	const statusConfig = getRequestStatusConfig(data.status);
 	const mrStateConfig = getMergeRequestStateConfig(data.mergeRequestState);
+	const maxWalltime = calculateMaxWalltime(allocationStartDate, allocationEndDate);
 
 	return (
 		<>
@@ -223,6 +264,13 @@ const OpenstackAllocationInfo = ({ data, history, canModify, allocationId, isCha
 					</Group>
 
 					<OpenstackRequestDetails request={data} />
+
+					{maxWalltime && (
+						<Stack gap={4}>
+							<Text size="sm" c="dimmed">Max walltime / cputime</Text>
+							<Text fw={500}>{maxWalltime.formatted} ({maxWalltime.hours.toLocaleString()} hours)</Text>
+						</Stack>
+					)}
 
 					{canModify && isChangeable && (
 						<Group justify="flex-end" mt="md">
