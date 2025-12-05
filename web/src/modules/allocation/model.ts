@@ -16,7 +16,6 @@ export type OpenstackRequest = {
 	status: OpenstackRequestStatus;
 	domain: string;
 	disableDate?: string | null;
-	projectDescription: string;
 	customerKey: string;
 	organizationKey: string;
 	workplaceKey: string;

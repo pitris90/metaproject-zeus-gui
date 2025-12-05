@@ -108,7 +108,6 @@ const AllocationRequest = () => {
 
 			requestBody.openstack = {
 				domain: data.openstack.domain.trim(),
-				projectDescription: data.openstack.projectDescription.trim(),
 				disableDate: data.openstack.disableDate
 					? dayjs(data.openstack.disableDate).format('YYYY-MM-DD')
 					: undefined,

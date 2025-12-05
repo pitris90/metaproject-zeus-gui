@@ -4,7 +4,6 @@ import { Method } from '@/modules/api/model';
 import { request } from '@/modules/api/request';
 export type AllocationOpenstackRequestPayload = {
 	domain: string;
-	projectDescription: string;
 	disableDate?: string;
 	customerKey: string;
 	organizationKey: string;

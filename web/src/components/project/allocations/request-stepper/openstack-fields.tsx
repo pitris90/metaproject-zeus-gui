@@ -192,14 +192,6 @@ const OpenstackAllocationFields = () => {
 						/>
 					)}
 				/>
-				<Textarea
-					label="Project description"
-					withAsterisk
-					autosize
-					minRows={4}
-					{...form.register('openstack.projectDescription')}
-					error={openstackErrors?.projectDescription?.message as string}
-				/>
 				<Controller<AddAllocationSchema>
 					control={form.control}
 					name="openstack.disableDate"

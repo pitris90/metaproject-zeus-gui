@@ -73,7 +73,6 @@ export const openstackAllocationSchema = z.object({
 				});
 			}
 		}),
-	projectDescription: z.string().min(5),
 	disableDate: z
 		.date()
 		.nullable()

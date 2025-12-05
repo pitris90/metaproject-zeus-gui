@@ -10,7 +10,6 @@ import {
 	Stack,
 	TagsInput,
 	Text,
-	Textarea,
 	TextInput,
 	Tooltip
 } from '@mantine/core';
@@ -90,7 +89,6 @@ const openstackNetworkEntrySchema = z.object({
 });
 
 const openstackModifySchema = z.object({
-	projectDescription: z.string().min(5),
 	disableDate: z
 		.date()
 		.nullable()
@@ -240,7 +238,6 @@ const OpenstackModifyModal = ({ opened, onClose, allocationId, currentRequest }:
 	const form = useForm<OpenstackModifyFormData>({
 		resolver: zodResolver(openstackModifySchema),
 		defaultValues: {
-			projectDescription: currentRequest.projectDescription,
 			disableDate: currentRequest.disableDate ? new Date(currentRequest.disableDate) : null,
 			customerKey: currentRequest.customerKey,
 			organizationKey: currentRequest.organizationKey,
@@ -256,7 +253,6 @@ const OpenstackModifyModal = ({ opened, onClose, allocationId, currentRequest }:
 	useEffect(() => {
 		if (opened) {
 			form.reset({
-				projectDescription: currentRequest.projectDescription,
 				disableDate: currentRequest.disableDate ? new Date(currentRequest.disableDate) : null,
 				customerKey: currentRequest.customerKey,
 				organizationKey: currentRequest.organizationKey,
@@ -388,7 +384,6 @@ const OpenstackModifyModal = ({ opened, onClose, allocationId, currentRequest }:
 		// Convert form data to API format
 		const payload = {
 			allocationId,
-			projectDescription: data.projectDescription,
 			disableDate: data.disableDate ? dayjs(data.disableDate).format('YYYY-MM-DD') : undefined,
 			customerKey: data.customerKey,
 			organizationKey: data.organizationKey,
@@ -434,15 +429,6 @@ const OpenstackModifyModal = ({ opened, onClose, allocationId, currentRequest }:
 							value={currentRequest.domain}
 							disabled
 							description="Domain cannot be modified"
-						/>
-
-						<Textarea
-							label="Project description"
-							withAsterisk
-							autosize
-							minRows={4}
-							{...form.register('projectDescription')}
-							error={errors.projectDescription?.message as string}
 						/>
 
 						<Controller<OpenstackModifyFormData>
