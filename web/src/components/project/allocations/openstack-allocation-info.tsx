@@ -17,10 +17,50 @@ type OpenstackAllocationInfoProps = {
 };
 
 /**
- * Calculates the duration between two dates and formats it as a human-readable string.
- * Returns the total hours, which represents max walltime/cputime for the allocation.
+ * Default cores count when not specified in the OpenStack quota
  */
-const calculateMaxWalltime = (startDate?: string, endDate?: string): { hours: number; formatted: string } | null => {
+const DEFAULT_CORES_COUNT = 10;
+
+/**
+ * Extracts the cores count from the latest approved and merged OpenStack request.
+ * Falls back to the current request's quota if no approved+merged request is found.
+ * Returns DEFAULT_CORES_COUNT (10) if no cores quota is defined.
+ */
+const getCoresFromOpenstackRequest = (
+	currentRequest?: OpenstackRequest,
+	history?: OpenstackRequest[]
+): number => {
+	// First, try to find the latest approved and merged request
+	const allRequests = [currentRequest, ...(history ?? [])].filter(
+		(req): req is OpenstackRequest => req !== undefined
+	);
+
+	// Find the latest approved and merged request with cores defined
+	const approvedAndMergedRequest = allRequests.find(
+		(req) => req.status === 'approved' && req.mergeRequestState === 'merged'
+	);
+
+	// Get cores from the approved+merged request, or fallback to current request
+	const requestToUse = approvedAndMergedRequest ?? currentRequest;
+	const coresValue = requestToUse?.quota?.['cores'];
+
+	if (typeof coresValue === 'number' && coresValue > 0) {
+		return coresValue;
+	}
+
+	return DEFAULT_CORES_COUNT;
+};
+
+/**
+ * Calculates the max CPU time for an OpenStack allocation.
+ * Formula: walltime (hours) × cores count
+ * Returns total CPU hours available.
+ */
+const calculateMaxCpuTime = (
+	startDate?: string,
+	endDate?: string,
+	coresCount: number = DEFAULT_CORES_COUNT
+): { cpuHours: number; walltimeHours: number; formatted: string } | null => {
 	if (!startDate || !endDate) {
 		return null;
 	}
@@ -37,21 +77,28 @@ const calculateMaxWalltime = (startDate?: string, endDate?: string): { hours: nu
 		return null;
 	}
 
-	const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
-	const days = Math.floor(totalHours / 24);
-	const hours = totalHours % 24;
+	const walltimeHours = Math.floor(diffMs / (1000 * 60 * 60));
+	const cpuHours = walltimeHours * coresCount;
 
-	let formatted = '';
+	// Format walltime for display
+	const days = Math.floor(walltimeHours / 24);
+	const hours = walltimeHours % 24;
+
+	let walltimeFormatted = '';
 	if (days > 0) {
-		formatted += `${days} day${days !== 1 ? 's' : ''}`;
+		walltimeFormatted += `${days} day${days !== 1 ? 's' : ''}`;
 		if (hours > 0) {
-			formatted += ` ${hours} hour${hours !== 1 ? 's' : ''}`;
+			walltimeFormatted += ` ${hours} hour${hours !== 1 ? 's' : ''}`;
 		}
 	} else {
-		formatted = `${hours} hour${hours !== 1 ? 's' : ''}`;
+		walltimeFormatted = `${hours} hour${hours !== 1 ? 's' : ''}`;
 	}
 
-	return { hours: totalHours, formatted };
+	return {
+		cpuHours,
+		walltimeHours,
+		formatted: `${cpuHours.toLocaleString()} CPU hours (${walltimeFormatted} × ${coresCount} cores)`
+	};
 };
 
 const formatDate = (value?: string | null): string => {
@@ -225,7 +272,8 @@ const OpenstackAllocationInfo = ({ data, history, canModify, allocationId, isCha
 
 	const statusConfig = getRequestStatusConfig(data.status);
 	const mrStateConfig = getMergeRequestStateConfig(data.mergeRequestState);
-	const maxWalltime = calculateMaxWalltime(allocationStartDate, allocationEndDate);
+	const coresCount = getCoresFromOpenstackRequest(data, history);
+	const maxCpuTime = calculateMaxCpuTime(allocationStartDate, allocationEndDate, coresCount);
 
 	return (
 		<>
@@ -261,11 +309,27 @@ const OpenstackAllocationInfo = ({ data, history, canModify, allocationId, isCha
 
 					<OpenstackRequestDetails request={data} />
 
-					{maxWalltime && (
-						<Stack gap={4}>
-							<Text size="sm" c="dimmed">Max walltime / cputime</Text>
-							<Text fw={500}>{maxWalltime.formatted} ({maxWalltime.hours.toLocaleString()} hours)</Text>
-						</Stack>
+					{maxCpuTime && (
+						<>
+							<Stack gap={4}>
+								<Text size="sm" c="dimmed">Max walltime</Text>
+								<Text fw={500}>
+									{maxCpuTime.walltimeHours.toLocaleString()} hours
+									{(() => {
+										const days = Math.floor(maxCpuTime.walltimeHours / 24);
+										const hours = maxCpuTime.walltimeHours % 24;
+										if (days > 0) {
+											return ` (${days} day${days !== 1 ? 's' : ''}${hours > 0 ? ` ${hours} hour${hours !== 1 ? 's' : ''}` : ''})`;
+										}
+										return '';
+									})()}
+								</Text>
+							</Stack>
+							<Stack gap={4}>
+								<Text size="sm" c="dimmed">Max CPU time</Text>
+								<Text fw={500}>{maxCpuTime.cpuHours.toLocaleString()} CPU hours ({maxCpuTime.walltimeHours.toLocaleString()} hours × {coresCount} cores)</Text>
+							</Stack>
+						</>
 					)}
 
 					{canModify && isChangeable && (
