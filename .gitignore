@@ -7,3 +7,4 @@ web/tsconfig.tsbuildinfo
 .env
 
 web/dist
+web/node_modules
