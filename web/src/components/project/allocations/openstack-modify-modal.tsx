@@ -90,12 +90,9 @@ const openstackNetworkEntrySchema = z.object({
 
 const openstackModifySchema = z.object({
 	disableDate: z
-		.date()
-		.nullable()
-		.optional()
+		.date({ required_error: 'Disable date is required.' })
 		.refine(
-			(date: Date | null | undefined) => {
-				if (!date) return true;
+			(date: Date) => {
 				const today = new Date();
 				today.setHours(0, 0, 0, 0);
 				return date >= today;
@@ -238,7 +235,7 @@ const OpenstackModifyModal = ({ opened, onClose, allocationId, currentRequest }:
 	const form = useForm<OpenstackModifyFormData>({
 		resolver: zodResolver(openstackModifySchema),
 		defaultValues: {
-			disableDate: currentRequest.disableDate ? new Date(currentRequest.disableDate) : null,
+			disableDate: currentRequest.disableDate ? new Date(currentRequest.disableDate) : undefined,
 			customerKey: currentRequest.customerKey,
 			organizationKey: currentRequest.organizationKey,
 			workplaceKey: currentRequest.workplaceKey,
@@ -253,7 +250,7 @@ const OpenstackModifyModal = ({ opened, onClose, allocationId, currentRequest }:
 	useEffect(() => {
 		if (opened) {
 			form.reset({
-				disableDate: currentRequest.disableDate ? new Date(currentRequest.disableDate) : null,
+				disableDate: currentRequest.disableDate ? new Date(currentRequest.disableDate) : undefined,
 				customerKey: currentRequest.customerKey,
 				organizationKey: currentRequest.organizationKey,
 				workplaceKey: currentRequest.workplaceKey,

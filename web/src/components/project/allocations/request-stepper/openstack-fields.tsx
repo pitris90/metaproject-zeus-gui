@@ -198,10 +198,10 @@ const OpenstackAllocationFields = () => {
 					render={(props: { field: ControllerRenderProps<AddAllocationSchema, 'openstack.disableDate'> }) => (
 						<DateInput
 							label="Disable date"
-							description="Optional date when the OpenStack project should be disabled"
+							description="Date when the OpenStack project should be disabled"
+							withAsterisk
 							value={props.field.value ?? null}
 							onChange={props.field.onChange}
-							clearable
 							error={openstackErrors?.disableDate?.message as string}
 						/>
 					)}

@@ -74,12 +74,9 @@ export const openstackAllocationSchema = z.object({
 			}
 		}),
 	disableDate: z
-		.date()
-		.nullable()
-		.optional()
+		.date({ required_error: 'Disable date is required.' })
 		.refine(
-			(date: Date | null | undefined) => {
-				if (!date) return true; // null/undefined is valid
+			(date: Date) => {
 				const today = new Date();
 				today.setHours(0, 0, 0, 0); // Start of today
 				return date >= today;

@@ -48,7 +48,7 @@ const ResourceStep = ({ resources, setSelectedResourceId, selectedResourceId, is
 				'openstack',
 				{
 					domain: '',
-					disableDate: null,
+					disableDate: undefined,
 					customerKey: '',
 					organizationKey: '',
 					workplaceKey: '',
