@@ -9,7 +9,7 @@ MetaProject Zeus is project implemented as part of a master thesis for FI MUNI. 
 ## Authors
 
 - [Adam Valalský (@adamvalalsky)](https://www.github.com/adamvalalsky) - original author
-- [Petr Balnar (@pitris90)](https://www.github.com/pitris90) - resource usage module
+- [Petr Balnar (@pitris90)](https://www.github.com/pitris90) - resource usage module, Openstack integration
 
 
 ## Prerequisites
