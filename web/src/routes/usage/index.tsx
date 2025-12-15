@@ -73,6 +73,11 @@ const UsageDashboard = () => {
 
 	const series = data?.series ?? [];
 
+	// Determine if we're showing only OpenStack data (walltime is not relevant for OpenStack)
+	const isOpenstackOnly =
+		data?.scope?.source === 'openstack' ||
+		(data?.availableSources?.length === 1 && data?.availableSources[0] === 'openstack');
+
 	return (
 		<Container size="xl" py="lg">
 			<Stack gap="xl">
@@ -153,18 +158,20 @@ const UsageDashboard = () => {
 									}
 								]}
 							/>
-							<UsageChartCard
-								title="Walltime"
-								description="Elapsed time per window"
-								series={series}
-								unitType="time"
-								metrics={[
-									{
-										key: 'walltimeSeconds',
-										label: 'Walltime'
-									}
-								]}
-							/>
+							{!isOpenstackOnly && (
+								<UsageChartCard
+									title="Walltime"
+									description="Elapsed time per window"
+									series={series}
+									unitType="time"
+									metrics={[
+										{
+											key: 'walltimeSeconds',
+											label: 'Walltime'
+										}
+									]}
+								/>
+							)}
 							<UsageChartCard
 								title="Memory"
 								description="Allocated vs used RAM"

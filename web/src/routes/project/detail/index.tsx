@@ -56,6 +56,11 @@ const ProjectDetail = () => {
 		}
 	}, [usageData?.availableSources, initialSources.length]);
 
+	// Determine if we're showing only OpenStack data (walltime is not relevant for OpenStack)
+	const isOpenstackOnly =
+		selectedSource === 'openstack' ||
+		(usageData?.availableSources?.length === 1 && usageData?.availableSources[0] === 'openstack');
+
 	const iconStyle = { width: rem(16), height: rem(16) };
 
 	const showArchivalInfoTab =
@@ -195,54 +200,54 @@ const ProjectDetail = () => {
 						</Group>
 					)}
 
-				{!isLoadingUsage && usageData && (
-					<Stack gap="md">
-						<Group>
-							{initialSources.length > 1 && (
-								<Select
-									label="Data source"
-									placeholder="All sources"
-									data={[
-										{ value: '', label: 'All sources' },
-										...initialSources.map((source: string) => ({
-											value: source,
-											label: source.toUpperCase()
-										}))
-									]}
-									value={selectedSource}
-									onChange={(value: string | null) => setSelectedSource(value || null)}
-									clearable
-									style={{ minWidth: 200 }}
-								/>
-							)}
+					{!isLoadingUsage && usageData && (
+						<Stack gap="md">
+							<Group>
+								{initialSources.length > 1 && (
+									<Select
+										label="Data source"
+										placeholder="All sources"
+										data={[
+											{ value: '', label: 'All sources' },
+											...initialSources.map((source: string) => ({
+												value: source,
+												label: source.toUpperCase()
+											}))
+										]}
+										value={selectedSource}
+										onChange={(value: string | null) => setSelectedSource(value || null)}
+										clearable
+										style={{ minWidth: 200 }}
+									/>
+								)}
 
-							{usageData.availableAllocations && usageData.availableAllocations.length > 0 && (
-								<Select
-									label="Allocation / Job"
-									placeholder="All allocations"
-									data={[
-										{ value: 'all', label: 'All' },
-										...usageData.availableAllocations.map((alloc: ResourceUsageAllocationOption) => ({
-											value: alloc.id,
-											label: alloc.label
-										}))
-									]}
-									value={selectedAllocation}
-									onChange={(value: string | null) => setSelectedAllocation(value || 'all')}
-									clearable
-									style={{ minWidth: 250 }}
-								/>
-							)}
-						</Group>
-						
-						{/* Static Metrics */}
-						<StaticMetricsCard
-							totalVcpus={usageData.totals.totalVcpus}
-							storageBytesAllocated={usageData.totals.storageBytesAllocated}
-							lastUpdated={usageData.totals.lastUpdated}
-						/>
+								{usageData.availableAllocations && usageData.availableAllocations.length > 0 && (
+									<Select
+										label="Allocation / Job"
+										placeholder="All allocations"
+										data={[
+											{ value: 'all', label: 'All' },
+											...usageData.availableAllocations.map((alloc: ResourceUsageAllocationOption) => ({
+												value: alloc.id,
+												label: alloc.label
+											}))
+										]}
+										value={selectedAllocation}
+										onChange={(value: string | null) => setSelectedAllocation(value || 'all')}
+										clearable
+										style={{ minWidth: 250 }}
+									/>
+								)}
+							</Group>
 
-						<SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+							{/* Static Metrics */}
+							<StaticMetricsCard
+								totalVcpus={usageData.totals.totalVcpus}
+								storageBytesAllocated={usageData.totals.storageBytesAllocated}
+								lastUpdated={usageData.totals.lastUpdated}
+							/>
+
+							<SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
 								<UsageChartCard
 									title="CPU time"
 									description="Total CPU seconds consumed per window"
@@ -267,18 +272,20 @@ const ProjectDetail = () => {
 										}
 									]}
 								/>
-								<UsageChartCard
-									title="Walltime"
-									description="Elapsed time per window"
-									series={usageData.series}
-									unitType="time"
-									metrics={[
-										{
-											key: 'walltimeSeconds',
-											label: 'Walltime'
-										}
-									]}
-								/>
+								{!isOpenstackOnly && (
+									<UsageChartCard
+										title="Walltime"
+										description="Elapsed time per window"
+										series={usageData.series}
+										unitType="time"
+										metrics={[
+											{
+												key: 'walltimeSeconds',
+												label: 'Walltime'
+											}
+										]}
+									/>
+								)}
 								<UsageChartCard
 									title="Memory"
 									description="Allocated vs used RAM"
